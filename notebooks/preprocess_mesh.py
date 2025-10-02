@@ -13,7 +13,7 @@ def convert_unstructured_to_polydata_mesh(input_mesh: pv.UnstructuredGrid) -> pv
     point_data = input_mesh.point_data
     cell_data = input_mesh.cell_data
     polydata_mesh = pv.PolyData.from_regular_faces(
-        input_mesh.points, _convert_pv_cells_to_numpy_cells(input_mesh.cells)
+        input_mesh.points, convert_pv_cells_to_numpy_cells(input_mesh.cells)
     )
     for key in point_data:
         polydata_mesh.point_data[key] = point_data[key]
@@ -21,6 +21,26 @@ def convert_unstructured_to_polydata_mesh(input_mesh: pv.UnstructuredGrid) -> pv
         polydata_mesh.cell_data[key] = cell_data[key]
 
     return polydata_mesh
+
+
+# --------------------------------------------------------------------------------------------------
+def convert_numpy_cells_to_pv_cells(
+    numpy_cells: np.ndarray,
+) -> np.ndarray:
+    num_vertices_array = 3 * np.ones(numpy_cells.shape[0])
+    pv_cell_array = np.hstack((num_vertices_array[:, np.newaxis], numpy_cells))
+    pv_cell_array = pv_cell_array.flatten().astype(int)
+
+    return pv_cell_array
+
+
+# --------------------------------------------------------------------------------------------------
+def convert_pv_cells_to_numpy_cells(
+    pv_cells: np.ndarray,
+) -> np.ndarray:
+    numpy_cells = pv_cells.reshape(-1, 4)[:, 1:]
+
+    return numpy_cells
 
 
 # --------------------------------------------------------------------------------------------------
@@ -46,7 +66,7 @@ def smoothen_feature_boundaries(
 ):
     point_data_labels = input_mesh.point_data.keys()
     point_data_mesh = input_mesh.cell_data_to_point_data()
-    vd_mesh = vd.Mesh([point_data_mesh.points, _convert_pv_cells_to_numpy_cells(input_mesh.faces)])
+    vd_mesh = vd.Mesh([point_data_mesh.points, convert_pv_cells_to_numpy_cells(input_mesh.faces)])
     vd_mesh.pointdata["anatomical_tags"] = point_data_mesh.point_data["anatomical_tags"]
     vd_mesh = vd_mesh.smooth_data(
         niter=num_iterations,
@@ -84,9 +104,9 @@ def fix_feature_tags_after_interpolation(
 def remove_boundary_spikes(input_mesh: pv.PolyData) -> pv.PolyData:
     _, cell_inds, num_neighbors = _get_cell_adjacencies(input_mesh)
     non_spike_cell_inds = cell_inds[num_neighbors > 1]
-    original_cells = _convert_pv_cells_to_numpy_cells(input_mesh.faces)
+    original_cells = convert_pv_cells_to_numpy_cells(input_mesh.faces)
     non_spike_cells = original_cells[non_spike_cell_inds]
-    non_spike_cells = _convert_numpy_cells_to_pv_cells(non_spike_cells)
+    non_spike_cells = convert_numpy_cells_to_pv_cells(non_spike_cells)
 
     cleaned_mesh = input_mesh.copy()
     cleaned_mesh.faces = non_spike_cells
@@ -180,29 +200,9 @@ def _reassign_original_point_data(
 
 
 # --------------------------------------------------------------------------------------------------
-def _convert_numpy_cells_to_pv_cells(
-    numpy_cells: np.ndarray,
-) -> np.ndarray:
-    num_vertices_array = 3 * np.ones(numpy_cells.shape[0])
-    pv_cell_array = np.hstack((num_vertices_array[:, np.newaxis], numpy_cells))
-    pv_cell_array = pv_cell_array.flatten().astype(int)
-
-    return pv_cell_array
-
-
-# --------------------------------------------------------------------------------------------------
-def _convert_pv_cells_to_numpy_cells(
-    pv_cells: np.ndarray,
-) -> np.ndarray:
-    numpy_cells = pv_cells.reshape(-1, 4)[:, 1:]
-
-    return numpy_cells
-
-
-# --------------------------------------------------------------------------------------------------
 def _get_cell_adjacencies(input_mesh: pv.PolyData) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     tm_mesh = tm.Trimesh(
-        vertices=input_mesh.points, faces=_convert_pv_cells_to_numpy_cells(input_mesh.faces)
+        vertices=input_mesh.points, faces=convert_pv_cells_to_numpy_cells(input_mesh.faces)
     )
     cell_adjacency_data_unidirectional = tm_mesh.face_adjacency
     cell_adjacency_data_reversed = cell_adjacency_data_unidirectional[:, ::-1]
