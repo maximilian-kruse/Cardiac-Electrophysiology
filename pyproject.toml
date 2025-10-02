@@ -42,3 +42,58 @@ trimesh = ">=4.8.3,<5"
 networkx = ">=3.5,<4"
 vedo = ">=2025.5.4,<2026"
 pymeshfix = ">=0.17.1,<0.18"
+
+
+# ==================================================================================================
+# Ruff
+# ==================================================================================================
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+  "COM812",
+  "EM101",
+  "EM102",
+  "FBT001",
+  "FBT002",
+  "FBT003",
+  "F722",
+  "F821",
+  "ISC001",
+  "PD008",
+  "PD011",
+  "PLR2004",
+  "PT003",
+  "RET504",
+  "S101",
+  "TRY003",
+]
+per-file-ignores = { "test/*" = [
+  "D100",
+  "D101",
+  "D103",
+  "D104",
+  "INP001",
+  "SLF001",
+] }
+pydocstyle.convention = "google"
+
+
+# ==================================================================================================
+# Pytest
+# ==================================================================================================
+[tool.pytest.ini_options]
+testpaths = ["test"]
+addopts = [
+  "-v",
+  "--import-mode=importlib",
+  "--cov=ls_prior",
+  "--cov-config=.coveragerc",
+]
+markers = [
+  "unit: unit tests",
+  "integration: integration tests",
+  "slow: tests with long runtime",
+]

@@ -972,7 +972,7 @@ packages:
 - pypi: ./
   name: cardiac-electrophysiology
   version: 0.1.0
-  sha256: fbead3b1a4117ba696dfd773d762b1fde1b7c2a3fa9f66b368e8f064e449feba
+  sha256: c9113c08a85e54f7f43121c7a1b379e5cb1514d266fc4e51d288e39f552ddc45
   requires_dist:
   - eikonax==0.3.4
   requires_python: '>=3.13'
