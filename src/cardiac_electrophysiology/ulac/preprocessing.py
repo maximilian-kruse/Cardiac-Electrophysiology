@@ -1,20 +1,16 @@
 from numbers import Real
 
+import fast_simplification as fs
 import numpy as np
 import pyvista as pv
 import trimesh as tm
-import vedo as vd
-
-vd.settings.set_vtk_verbosity(0)
 
 
 # ==================================================================================================
 def convert_unstructured_to_polydata_mesh(input_mesh: pv.UnstructuredGrid) -> pv.PolyData:
     point_data = input_mesh.point_data
     cell_data = input_mesh.cell_data
-    polydata_mesh = pv.PolyData.from_regular_faces(
-        input_mesh.points, convert_pv_cells_to_numpy_cells(input_mesh.cells)
-    )
+    polydata_mesh = pv.PolyData(input_mesh.points, input_mesh.cells)
     for key in point_data:
         polydata_mesh.point_data[key] = point_data[key]
     for key in cell_data:
@@ -43,46 +39,25 @@ def convert_pv_cells_to_numpy_cells(
     return numpy_cells
 
 
-# --------------------------------------------------------------------------------------------------
-def coarsen_mesh(input_mesh: pv.PolyData, decimation_factor: Real) -> pv.PolyData:
-    point_data_labels = input_mesh.point_data.keys()
-    point_data_mesh = input_mesh.cell_data_to_point_data()
-    coarsened_point_data_mesh = point_data_mesh.decimate_pro(
-        decimation_factor, preserve_topology=True
+# ==================================================================================================
+def coarsen_mesh(
+    input_mesh: pv.PolyData, decimation_factor: Real, num_smoothing_iters: int = 50
+) -> pv.PolyData:
+    input_mesh = input_mesh.cell_data_to_point_data()
+    coarse_mesh = fs.simplify_mesh(input_mesh, target_reduction=decimation_factor)
+    smoothened_mesh = coarse_mesh.smooth(n_iter=num_smoothing_iters, relaxation_factor=0.1)
+    smoothened_mesh = smoothened_mesh.interpolate(input_mesh, strategy="closest_point")
+    smoothened_mesh = smoothened_mesh.point_data_to_cell_data()
+    smoothened_mesh = _fix_feature_tags_after_interpolation(
+        smoothened_mesh, extraction_threshold=0.5
     )
-    point_data_buffer = _extract_original_point_data(coarsened_point_data_mesh, point_data_labels)
-    coarsened_mesh = coarsened_point_data_mesh.point_data_to_cell_data()
-    coarsened_mesh = _reassign_original_point_data(coarsened_mesh, point_data_buffer)
-
-    return coarsened_mesh
-
-
-# --------------------------------------------------------------------------------------------------
-def smoothen_feature_boundaries(
-    input_mesh: pv.PolyData,
-    smoothing_strategy: int = 0,
-    num_iterations: int = 10,
-    relaxation_factor: Real = 1e-3,
-):
-    point_data_labels = input_mesh.point_data.keys()
-    point_data_mesh = input_mesh.cell_data_to_point_data()
-    vd_mesh = vd.Mesh([point_data_mesh.points, convert_pv_cells_to_numpy_cells(input_mesh.faces)])
-    vd_mesh.pointdata["anatomical_tags"] = point_data_mesh.point_data["anatomical_tags"]
-    vd_mesh = vd_mesh.smooth_data(
-        niter=num_iterations,
-        relaxation_factor=relaxation_factor,
-        strategy=smoothing_strategy,
-    )
-    point_data_mesh.point_data["anatomical_tags"] = vd_mesh.pointdata["anatomical_tags"]
-    point_data_buffer = _extract_original_point_data(point_data_mesh, point_data_labels)
-    smoothened_mesh = point_data_mesh.point_data_to_cell_data()
-    smoothened_mesh = _reassign_original_point_data(smoothened_mesh, point_data_buffer)
+    smoothened_mesh = _remove_feature_boundary_spikes(smoothened_mesh)
 
     return smoothened_mesh
 
 
-# --------------------------------------------------------------------------------------------------
-def fix_feature_tags_after_interpolation(
+# ==================================================================================================
+def _fix_feature_tags_after_interpolation(
     input_mesh: pv.PolyData, extraction_threshold: Real, lower_cutoff: Real = 0.1
 ) -> pv.PolyData:
     near_zero_tags = np.where(input_mesh.cell_data["anatomical_tags"] <= lower_cutoff)[0]
@@ -101,24 +76,7 @@ def fix_feature_tags_after_interpolation(
 
 
 # --------------------------------------------------------------------------------------------------
-def remove_boundary_spikes(input_mesh: pv.PolyData) -> pv.PolyData:
-    _, cell_inds, num_neighbors = _get_cell_adjacencies(input_mesh)
-    non_spike_cell_inds = cell_inds[num_neighbors > 1]
-    original_cells = convert_pv_cells_to_numpy_cells(input_mesh.faces)
-    non_spike_cells = original_cells[non_spike_cell_inds]
-    non_spike_cells = convert_numpy_cells_to_pv_cells(non_spike_cells)
-
-    cleaned_mesh = input_mesh.copy()
-    cleaned_mesh.faces = non_spike_cells
-    cleaned_mesh.remove_unused_points()
-    for key in input_mesh.cell_data:
-        cleaned_mesh.cell_data[key] = input_mesh.cell_data[key][non_spike_cell_inds]
-
-    return cleaned_mesh
-
-
-# --------------------------------------------------------------------------------------------------
-def remove_feature_boundary_spikes(input_mesh: pv.PolyData) -> pv.PolyData:
+def _remove_feature_boundary_spikes(input_mesh: pv.PolyData) -> pv.PolyData:
     sorted_cell_adjacency_data, cell_inds, num_neighbors = _get_cell_adjacencies(input_mesh)
     non_boundary_cells = cell_inds[num_neighbors == 3]
     non_boundary_adjacency_data = sorted_cell_adjacency_data[
@@ -126,14 +84,7 @@ def remove_feature_boundary_spikes(input_mesh: pv.PolyData) -> pv.PolyData:
     ]
     neighbors_per_cell = non_boundary_adjacency_data[:, 1].reshape(-1, 3)
 
-    cell_tags = input_mesh.cell_data["anatomical_tags"][non_boundary_cells]
-    neighbor_tags = input_mesh.cell_data["anatomical_tags"][neighbors_per_cell]
-    coinciding_neighbor_mask = neighbor_tags == cell_tags[:, np.newaxis]
-    num_coinciding_neighbors = np.sum(coinciding_neighbor_mask, axis=1)
-    spike_inds = np.where(num_coinciding_neighbors == 1)[0]
-    feature_spike_inds = non_boundary_cells[spike_inds[cell_tags[spike_inds] != 0]]
-    input_mesh.cell_data["anatomical_tags"][feature_spike_inds] = 0
-
+    # Remove body spikes
     cell_tags = input_mesh.cell_data["anatomical_tags"][non_boundary_cells]
     neighbor_tags = input_mesh.cell_data["anatomical_tags"][neighbors_per_cell]
     coinciding_neighbor_mask = neighbor_tags == cell_tags[:, np.newaxis]
@@ -148,10 +99,19 @@ def remove_feature_boundary_spikes(input_mesh: pv.PolyData) -> pv.PolyData:
         first_non_conforming_neighbor_tag
     )
 
+    # Remove feature spikes
+    cell_tags = input_mesh.cell_data["anatomical_tags"][non_boundary_cells]
+    neighbor_tags = input_mesh.cell_data["anatomical_tags"][neighbors_per_cell]
+    coinciding_neighbor_mask = neighbor_tags == cell_tags[:, np.newaxis]
+    num_coinciding_neighbors = np.sum(coinciding_neighbor_mask, axis=1)
+    spike_inds = np.where(num_coinciding_neighbors == 1)[0]
+    feature_spike_inds = non_boundary_cells[spike_inds[cell_tags[spike_inds] != 0]]
+    input_mesh.cell_data["anatomical_tags"][feature_spike_inds] = 0
+
     return input_mesh
 
 
-# ==================================================================================================
+# --------------------------------------------------------------------------------------------------
 def _get_feature_submeshes(input_mesh: pv.PolyData, lower_cutoff: Real = 0.1) -> pv.MultiBlock:
     feature_meshes = input_mesh.extract_values(
         ranges=[lower_cutoff, float("inf")], scalars="anatomical_tags"
@@ -178,28 +138,6 @@ def _extract_feature_tags_above_threshold(
 
 
 # --------------------------------------------------------------------------------------------------
-def _extract_original_point_data(
-    input_mesh: pv.PolyData, point_data_labels: list[str]
-) -> dict[str, pv.ArrayLike]:
-    point_data_buffer = {}
-    for label in point_data_labels:
-        point_data_buffer[label] = input_mesh.point_data[label]
-        del input_mesh.point_data[label]
-
-    return point_data_buffer
-
-
-# --------------------------------------------------------------------------------------------------
-def _reassign_original_point_data(
-    input_mesh: pv.PolyData, point_data_buffer: dict[str, pv.ArrayLike]
-) -> pv.PolyData:
-    for key, value in point_data_buffer.items():
-        input_mesh.point_data[key] = value
-
-    return input_mesh
-
-
-# --------------------------------------------------------------------------------------------------
 def _get_cell_adjacencies(input_mesh: pv.PolyData) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     tm_mesh = tm.Trimesh(
         vertices=input_mesh.points, faces=convert_pv_cells_to_numpy_cells(input_mesh.faces)
@@ -211,9 +149,6 @@ def _get_cell_adjacencies(input_mesh: pv.PolyData) -> tuple[np.ndarray, np.ndarr
     )
     sorting_mask = np.argsort(cell_adjacency_data[:, 0])
     sorted_cell_adjacency_data = cell_adjacency_data[sorting_mask]
-    cell_inds, num_neighbors = np.unique(
-        sorted_cell_adjacency_data[:, 0], return_counts=True
-    )
+    cell_inds, num_neighbors = np.unique(sorted_cell_adjacency_data[:, 0], return_counts=True)
 
     return sorted_cell_adjacency_data, cell_inds, num_neighbors
-

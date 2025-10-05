@@ -3,7 +3,7 @@ authors = [{name = "Max Kruse", email = "maximilian.kruse@kit.edu"}]
 name = "cardiac-electrophysiology"
 requires-python = ">= 3.13"
 version = "0.1.0"
-dependencies = ["eikonax==0.3.4"]
+dependencies = ["eikonax==0.3.4", "fast-simplification>=0.1.12,<0.2"]
 
 [build-system]
 build-backend = "hatchling.build"
@@ -42,6 +42,7 @@ trimesh = ">=4.8.3,<5"
 networkx = ">=3.5,<4"
 vedo = ">=2025.5.4,<2026"
 pymeshfix = ">=0.17.1,<0.18"
+deprecated = ">=1.2.18,<2"
 
 
 # ==================================================================================================

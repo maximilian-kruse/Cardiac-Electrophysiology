@@ -483,6 +483,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zstd-1.5.7-hb8e6e7a_2.conda
       - pypi: https://files.pythonhosted.org/packages/1a/87/f07ba04e262b00b27209683f73254c470d86ea37842d51122ad510b7b8a6/eikonax-0.3.4-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/1f/10/9c0687024ce9e478a667262d111fb15502828d28c93482b48446e3558efd/equinox-0.13.1-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/57/95/ba2a3044a5a466e53d3c398091f820a06c7a322936f0b7d2ddae7e361e02/fast_simplification-0.1.12-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/d5/e6/5fd0f6fff79eb47469ff9c4fa27125b661517a2fbf8884689b02e9fdfaa8/jax-0.7.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/3e/0b/a33add48e904dd88a52d4653cc8290da0f2d3dc132c60c5dbda6783f4e4a/jaxlib-0.7.2-cp313-cp313-manylinux_2_27_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/c9/b9/281e10e2d967ea5e481683eaec99f55ac5a61085ee60551c36942ef32bef/jaxtyping-0.3.2-py3-none-any.whl
@@ -972,9 +973,10 @@ packages:
 - pypi: ./
   name: cardiac-electrophysiology
   version: 0.1.0
-  sha256: c9113c08a85e54f7f43121c7a1b379e5cb1514d266fc4e51d288e39f552ddc45
+  sha256: 99453bcff5d3616ec5aeeffc7832a5f5e460053e7cdf2a5e54f94f95dff1e574
   requires_dist:
   - eikonax==0.3.4
+  - fast-simplification>=0.1.12,<0.2
   requires_python: '>=3.13'
   editable: true
 - conda: https://conda.anaconda.org/conda-forge/noarch/certifi-2025.8.3-pyhd8ed1ab_0.conda
@@ -1275,6 +1277,13 @@ packages:
   purls: []
   size: 140948
   timestamp: 1752719584725
+- pypi: https://files.pythonhosted.org/packages/57/95/ba2a3044a5a466e53d3c398091f820a06c7a322936f0b7d2ddae7e361e02/fast_simplification-0.1.12-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+  name: fast-simplification
+  version: 0.1.12
+  sha256: 65792732248618f2b3de2d75c6a126c7be59bcbdd5f3b5fabd6c88e3ff29829d
+  requires_dist:
+  - numpy
+  requires_python: '>=3.9'
 - conda: https://conda.anaconda.org/conda-forge/linux-64/fenics-basix-0.9.0-py313h1c175c3_3.conda
   sha256: 986fdae16316c23322af77da3a7f151729332f5d919123e21ca2ffafad94b8ed
   md5: 7f6088b01e8a3463ab2a5885a3203a24
