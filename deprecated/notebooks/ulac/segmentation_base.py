@@ -78,8 +78,8 @@ def get_inner_outer_boundaries(
 # --------------------------------------------------------------------------------------------------
 def construct_path_from_boundary(boundary: UnOrderedPath) -> np.ndarray:
     start_point = boundary.points[0]
-    adjacent_edges = boundary.edges[np.where(boundary.edges == start_point)[0][0]]
-    end_point = adjacent_edges[adjacent_edges != start_point][0]
+    adjacent_edge = boundary.edges[np.where(boundary.edges == start_point)[0][0]]
+    end_point = adjacent_edge[adjacent_edge != start_point][0]
 
     ordered_points = [start_point]
     current_point = start_point
@@ -88,11 +88,9 @@ def construct_path_from_boundary(boundary: UnOrderedPath) -> np.ndarray:
     while current_point != end_point:
         adjacent_edges = np.where(boundary.edges == current_point)[0]
         edge_candidate = boundary.edges[adjacent_edges[0]]
-        if last_point is None or last_point not in edge_candidate:
-            new_point = edge_candidate[edge_candidate != current_point][0]
-        else:
+        if last_point in edge_candidate:
             edge_candidate = boundary.edges[adjacent_edges[1]]
-            new_point = edge_candidate[edge_candidate != current_point][0]
+        new_point = edge_candidate[edge_candidate != current_point][0]
         ordered_points.append(int(new_point))
         last_point = current_point
         current_point = new_point

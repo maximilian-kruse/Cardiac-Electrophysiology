@@ -56,6 +56,56 @@ def coarsen_mesh(
     return smoothened_mesh
 
 
+# --------------------------------------------------------------------------------------------------
+def split_from_enclosing_boundary(mesh: pv.PolyData, boundary_inds: np.ndarray):
+    simplices = convert_pv_cells_to_numpy_cells(mesh.faces)
+    not_boundary_inds = np.setdiff1d(np.arange(mesh.number_of_points), boundary_inds)
+    not_boundary_submesh = mesh.extract_points(not_boundary_inds, adjacent_cells=False)
+    boundary_submesh_with_padding = mesh.extract_points(boundary_inds, adjacent_cells=True)
+    split_mesh = not_boundary_submesh.split_bodies()
+    submeshes_with_boundary = []
+
+    for submesh in split_mesh:
+        interior_cell_inds = submesh.cell_data["vtkOriginalCellIds"]
+        padded_boundary_cell_inds = boundary_submesh_with_padding.cell_data["vtkOriginalCellIds"]
+        contained_cell_inds = np.unique(
+            np.concatenate([interior_cell_inds, padded_boundary_cell_inds])
+        )
+        submesh_inflated = mesh.extract_cells(contained_cell_inds)
+        submesh_outer_boundary = submesh_inflated.extract_feature_edges(
+            boundary_edges=True,
+            non_manifold_edges=False,
+            feature_edges=False,
+            manifold_edges=False,
+        )
+        outer_boundary_inds = submesh_inflated.point_data["vtkOriginalPointIds"][
+            submesh_outer_boundary.point_data["vtkOriginalPointIds"]
+        ]
+        cells_touching_outer_boundary = np.where(
+            np.isin(simplices, outer_boundary_inds).any(axis=1)
+        )[0]
+        cells_touching_boundary = np.where(np.isin(simplices, boundary_inds).any(axis=1))[0]
+        cells_touching_both = np.intersect1d(cells_touching_outer_boundary, cells_touching_boundary)
+        cells_to_keep = np.setdiff1d(contained_cell_inds, cells_touching_both)
+        submesh_with_boundary = mesh.extract_cells(cells_to_keep)
+        submeshes_with_boundary.append(submesh_with_boundary)
+
+    return submeshes_with_boundary
+
+
+# --------------------------------------------------------------------------------------------------
+def get_local_point_inds(submesh: pv.PolyData, global_point_inds: np.ndarray) -> np.ndarray:
+    original_inds = submesh.point_data["vtkOriginalPointIds"]
+    local_point_inds = np.array(
+        [
+            np.where(original_inds == ind)[0][0]
+            for ind in global_point_inds
+            if ind in original_inds
+        ]
+    )
+    return local_point_inds
+
+
 # ==================================================================================================
 def _fix_feature_tags_after_interpolation(
     input_mesh: pv.PolyData, extraction_threshold: Real, lower_cutoff: Real = 0.1
