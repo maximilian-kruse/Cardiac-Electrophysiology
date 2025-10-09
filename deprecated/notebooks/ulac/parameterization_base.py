@@ -62,50 +62,12 @@ def parameterize_polyline_by_path_length(
     return parameterized_boundary
 
 
-# --------------------------------------------------------------------------------------------------
-def compute_uacs_circle(path: ParameterizedPath, uac_circle: UACCircle) -> UACPath:
-    angle = uac_circle.start_angle + 2 * np.pi * uac_circle.orientation * path.relative_length
-    alpha = uac_circle.center[0] + uac_circle.radius * np.cos(angle)
-    beta = uac_circle.center[1] + uac_circle.radius * np.sin(angle)
-    uac_path = UACPath(inds=path.inds, alpha=alpha, beta=beta)
-    return uac_path
 
-
-# --------------------------------------------------------------------------------------------------
-def compute_uacs_rectangle(path: ParameterizedPath, uac_rectangle: UACRectangle) -> UACPath:
-    first_edge = np.where(path.relative_length <= 0.25)[0]
-    second_edge = np.where((path.relative_length > 0.25) & (path.relative_length < 0.5))[0]
-    third_edge = np.where((path.relative_length >= 0.5) & (path.relative_length < 0.75))[0]
-    fourth_edge = np.where(path.relative_length >= 0.75)[0]
-    alpha = np.zeros(path.relative_length.size)
-    beta = np.zeros(path.relative_length.size)
-
-    alpha[first_edge] = 4 * uac_rectangle.length_alpha * path.relative_length[first_edge]
-    alpha[second_edge] = uac_rectangle.length_alpha
-    alpha[third_edge] = 4 * uac_rectangle.length_alpha * (0.75 - path.relative_length[third_edge])
-    alpha[fourth_edge] = 0
-    alpha += uac_rectangle.lower_left_corner[0]
-    beta[first_edge] = 0
-    beta[second_edge] = 4 * uac_rectangle.length_beta * (path.relative_length[second_edge] - 0.25)
-    beta[third_edge] = uac_rectangle.length_beta
-    beta[fourth_edge] = 4 * uac_rectangle.length_beta * (1 - path.relative_length[fourth_edge])
-    beta += uac_rectangle.lower_left_corner[1]
-
-    uac_path = UACPath(inds=path.inds, alpha=alpha, beta=beta)
-    return uac_path
-
-
-# --------------------------------------------------------------------------------------------------
-def compute_uacs_line(path: ParameterizedPath, uac_line: UACLine) -> UACPath:
-    alpha = uac_line.start[0] + (uac_line.end[0] - uac_line.start[0]) * path.relative_length
-    beta = uac_line.start[1] + (uac_line.end[1] - uac_line.start[1]) * path.relative_length
-    uac_path = UACPath(inds=path.inds, alpha=alpha, beta=beta)
-    return uac_path
 
 
 # ==================================================================================================
 def _reorder_by_start_ind_and_markers(
-    boundary: np.ndarray, start_ind: int, marker_inds: list[int], marker_values: list[float]
+    boundary: np.ndarray, start_ind: int, marker_inds: list[int]=[], marker_values: list[float]=[]
 ) -> np.ndarray:
     relative_start_ind_location = np.where(boundary == start_ind)[0][0]
     ordered_boundary = np.roll(boundary, -relative_start_ind_location)
