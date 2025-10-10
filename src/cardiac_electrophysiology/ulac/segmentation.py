@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import numpy as np
 import pyvista as pv
 
-from .base import segmentation_base as seg
+from .base import segmentation as seg
 
 
 # ==================================================================================================

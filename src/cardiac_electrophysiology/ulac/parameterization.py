@@ -2,8 +2,8 @@ from dataclasses import dataclass, fields
 
 import numpy as np
 
-from .base import parameterization_base as par
-from .base import segmentation_base as seg
+from .base import parameterization as par
+from .base import segmentation as seg
 
 
 # ==================================================================================================
