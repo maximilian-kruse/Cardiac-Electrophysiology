@@ -8,14 +8,19 @@ import trimesh as tm
 
 # ==================================================================================================
 @dataclass
+class Submesh:
+    point_inds: np.ndarray = None
+    connectivity: np.ndarray = None
+
+
+@dataclass
 class ParameterizedPath:
     inds: np.ndarray = None
     relative_lengths: np.ndarray = None
 
 
 @dataclass
-class UACPath:
-    inds: np.ndarray = None
+class UACPath(ParameterizedPath):
     alpha: np.ndarray = None
     beta: np.ndarray = None
 
@@ -70,7 +75,7 @@ def get_inner_outer_boundaries(
     for boundary_inds in [inner_feature_boundary_inds, outer_feature_boundary_inds]:
         if boundary_inds.size > 0:
             ordered_boundary_inds = _construct_ordered_path_from_indices(tm_mesh, boundary_inds)
-            boundary_paths.append(ordered_boundary_inds[:-1])
+            boundary_paths.append(ordered_boundary_inds)
         else:
             boundary_paths.append(np.array([], dtype=int))
 
@@ -112,12 +117,37 @@ def _construct_ordered_path_from_indices(
     return ordered_path_indices
 
 
+# --------------------------------------------------------------------------------------------------
+def split_from_enclosing_boundary(mesh: pv.PolyData, boundary_inds: np.ndarray):
+    simplices = np.array(mesh.faces.reshape(-1, 4)[:, 1:])
+    not_boundary_inds = np.setdiff1d(np.arange(mesh.number_of_points), boundary_inds)
+    not_boundary_submesh = mesh.extract_points(not_boundary_inds, adjacent_cells=False)
+    split_mesh = not_boundary_submesh.split_bodies()
+    submeshes_with_boundary = []
+
+    for submesh in split_mesh:
+        interior_point_inds = submesh.point_data["vtkOriginalPointIds"]
+        interior_cell_inds = submesh.cell_data["vtkOriginalCellIds"]
+        cells_touching_interior = np.where(np.isin(simplices, interior_point_inds).any(axis=1))[0]
+        cells_touching_boundary = np.where(np.isin(simplices, boundary_inds).any(axis=1))[0]
+        cells_touching_both = np.intersect1d(cells_touching_interior, cells_touching_boundary)
+        submesh_with_boundary_cell_inds = np.hstack(
+            [interior_cell_inds, cells_touching_both]
+        ).astype(int)
+        submesh_with_boundary = mesh.extract_cells(submesh_with_boundary_cell_inds)
+        point_inds = submesh_with_boundary.point_data["vtkOriginalPointIds"]
+        connectivity = np.array(submesh_with_boundary.cells.reshape(-1, 4)[:, 1:])
+        submeshes_with_boundary.append(Submesh(point_inds, connectivity))
+
+    return submeshes_with_boundary
+
+
 # ==================================================================================================
 def reorder_path_by_markers(
     path: np.ndarray,
     start_ind: int,
-    marker_inds: list[int]=[],  # noqa: B006
-    marker_values: list[float]=[],  # noqa: B006
+    marker_inds: list[int] = [],  # noqa: B006
+    marker_values: list[float] = [],  # noqa: B006
 ) -> tuple[np.ndarray, list[int]]:
     relative_start_ind_location = np.where(path == start_ind)[0]
     ordered_path = np.roll(path, -relative_start_ind_location)
@@ -135,8 +165,8 @@ def reorder_path_by_markers(
 def parameterize_path_by_relative_length(
     mesh: pv.PolyData,
     path: np.ndarray,
-    relative_marker_inds: list[int]=[],  # noqa: B006
-    marker_values: list[float]=[],  # noqa: B006
+    relative_marker_inds: list[int] = [],  # noqa: B006
+    marker_values: list[float] = [],  # noqa: B006
 ) -> ParameterizedPath:
     segments = np.split(np.arange(path.size), relative_marker_inds)
     segment_values = [0, *marker_values, 1]
@@ -148,10 +178,13 @@ def parameterize_path_by_relative_length(
 
     relative_lengths = np.zeros(coordinates.shape[0])
     for i, segment_inds in enumerate(segments):
+        include_endpoint = (i == len(segments) - 1)
         start_value = segment_values[i]
         end_value = segment_values[i + 1]
         num_points = segment_inds.size
-        segment_parameterization = np.linspace(start_value, end_value, num_points, endpoint=False)
+        segment_parameterization = np.linspace(
+            start_value, end_value, num_points, endpoint=include_endpoint
+        )
         relative_lengths[segment_inds] = segment_parameterization
 
     parameterized_path = ParameterizedPath(path, relative_lengths)
@@ -159,16 +192,18 @@ def parameterize_path_by_relative_length(
 
 
 # ==================================================================================================
-def compute_uacs_circle(path: par.ParameterizedPath, uac_circle: UACCircle) -> UACPath:
+def compute_uacs_circle(path: ParameterizedPath, uac_circle: UACCircle) -> UACPath:
     angle = uac_circle.start_angle + 2 * np.pi * uac_circle.orientation * path.relative_lengths
     alpha = uac_circle.center[0] + uac_circle.radius * np.cos(angle)
     beta = uac_circle.center[1] + uac_circle.radius * np.sin(angle)
-    uac_path = UACPath(inds=path.inds, alpha=alpha, beta=beta)
+    uac_path = UACPath(
+        inds=path.inds, relative_lengths=path.relative_lengths, alpha=alpha, beta=beta
+    )
     return uac_path
 
 
 # --------------------------------------------------------------------------------------------------
-def compute_uacs_rectangle(path: par.ParameterizedPath, uac_rectangle: UACRectangle) -> UACPath:
+def compute_uacs_rectangle(path: ParameterizedPath, uac_rectangle: UACRectangle) -> UACPath:
     first_edge = np.where(path.relative_lengths <= 0.25)[0]
     second_edge = np.where((path.relative_lengths > 0.25) & (path.relative_lengths < 0.5))[0]
     third_edge = np.where((path.relative_lengths >= 0.5) & (path.relative_lengths < 0.75))[0]
@@ -187,13 +222,17 @@ def compute_uacs_rectangle(path: par.ParameterizedPath, uac_rectangle: UACRectan
     beta[fourth_edge] = 4 * uac_rectangle.length_beta * (1 - path.relative_lengths[fourth_edge])
     beta += uac_rectangle.lower_left_corner[1]
 
-    uac_path = UACPath(inds=path.inds, alpha=alpha, beta=beta)
+    uac_path = UACPath(
+        inds=path.inds, relative_lengths=path.relative_lengths, alpha=alpha, beta=beta
+    )
     return uac_path
 
 
 # --------------------------------------------------------------------------------------------------
-def compute_uacs_line(path: par.ParameterizedPath, uac_line: UACLine) -> UACPath:
+def compute_uacs_line(path: ParameterizedPath, uac_line: UACLine) -> UACPath:
     alpha = uac_line.start[0] + (uac_line.end[0] - uac_line.start[0]) * path.relative_lengths
     beta = uac_line.start[1] + (uac_line.end[1] - uac_line.start[1]) * path.relative_lengths
-    uac_path = UACPath(inds=path.inds, alpha=alpha, beta=beta)
+    uac_path = UACPath(
+        inds=path.inds, relative_lengths=path.relative_lengths, alpha=alpha, beta=beta
+    )
     return uac_path
