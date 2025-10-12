@@ -215,26 +215,36 @@ def parameterize_paths_without_markers(
 # ==================================================================================================
 def construct_uac_pv_boundary_paths(
     parameterized_pv_boundary_paths: data.ParameterizedPVBoundaryPaths,
+    pv_markers: data.PVSegmentMarkers,
 ) -> data.UACPVBoundaryPaths:
     uac_pv_boundary_paths = data.UACPVBoundaryPaths()
-    uac_specs = spec.uac_form_specs["pv_boundaries"]
+    uac_marker_specs = spec.uac_direct_marker_specs["pv_boundaries"]
+
     for pv_boundary_field in fields(parameterized_pv_boundary_paths):
         path = getattr(parameterized_pv_boundary_paths, pv_boundary_field.name)
-        circle = uac_specs[pv_boundary_field.name]
-        uac_path = base.compute_uacs_circle(path, circle)
+        marker_specs = uac_marker_specs[pv_boundary_field.name]
+        triangle = base.UACTriangle(
+            vertex_relative_lengths=(1 / 4, 5 / 8),
+            vertex_one=marker_specs["anterior_posterior"],
+            vertex_two=marker_specs["septal_lateral"],
+            vertex_three=marker_specs["diagonal"],
+        )
+        uac_path = base.compute_uacs_triangle(path, triangle)
         setattr(uac_pv_boundary_paths, pv_boundary_field.name, uac_path)
     return uac_pv_boundary_paths
 
 
 # --------------------------------------------------------------------------------------------------
 def construct_uac_roof_paths(
-    parameterized_roof_paths: data.ParameterizedRoofPaths,
+    parameterized_roof_paths: data.ParameterizedRoofPaths
 ) -> data.UACRoofPaths:
     uac_roof_paths = data.UACRoofPaths()
-    uac_specs = spec.uac_form_specs["roof"]
+    uac_marker_specs = spec.uac_indirect_marker_specs["roof"]
+
     for roof_field in fields(parameterized_roof_paths):
         path = getattr(parameterized_roof_paths, roof_field.name)
-        line = uac_specs[roof_field.name]
+        start_point, end_point = uac_marker_specs[roof_field.name]
+        line = base.UACLine(start=start_point, end=end_point)
         uac_path = base.compute_uacs_line(path, line)
         setattr(uac_roof_paths, roof_field.name, uac_path)
 
@@ -246,10 +256,12 @@ def construct_uac_diagonal_paths(
     parameterized_diagonal_paths: data.ParameterizedDiagonalPaths,
 ) -> data.UACDiagonalPaths:
     uac_diagonal_paths = data.UACDiagonalPaths()
-    uac_specs = spec.uac_form_specs["diagonal"]
+    uac_marker_specs = spec.uac_indirect_marker_specs["diagonal"]
+
     for diagonal_field in fields(parameterized_diagonal_paths):
         path = getattr(parameterized_diagonal_paths, diagonal_field.name)
-        line = uac_specs[diagonal_field.name]
+        start_point, end_point = uac_marker_specs[diagonal_field.name]
+        line = base.UACLine(start=start_point, end=end_point)
         uac_path = base.compute_uacs_line(path, line)
         setattr(uac_diagonal_paths, diagonal_field.name, uac_path)
 
@@ -261,17 +273,54 @@ def construct_uac_pv_segment_paths(
     parameterized_pv_segment_paths: data.ParameterizedPVSegmentPaths,
 ) -> data.UACPVSegmentPaths:
     uac_pv_segment_paths = data.UACPVSegmentPaths()
-    uac_specs = spec.uac_form_specs["pv_segments"]
+    uac_marker_specs = spec.uac_indirect_marker_specs["pv_segments"]
+
     for pv_field in fields(parameterized_pv_segment_paths):
-        pv_segment = getattr(parameterized_pv_segment_paths, pv_field.name)
-        uac_segments = data.UACSegments()
-        for segment_field in fields(uac_segments):
-            path = getattr(pv_segment, segment_field.name)
-            line = uac_specs[pv_field.name][segment_field.name]
+        pv_segments = getattr(parameterized_pv_segment_paths, pv_field.name)
+        pv_specs = uac_marker_specs[pv_field.name]
+        segments = data.UACSegments()
+        for segment_field in fields(segments):
+            path = getattr(pv_segments, segment_field.name)
+            start_point, end_point = pv_specs[segment_field.name]
+            line = base.UACLine(start=start_point, end=end_point)
             uac_path = base.compute_uacs_line(path, line)
-            setattr(uac_segments, segment_field.name, uac_path)
-        setattr(uac_pv_segment_paths, pv_field.name, uac_segments)
+            setattr(segments, segment_field.name, uac_path)
+        setattr(uac_pv_segment_paths, pv_field.name, segments)
     return uac_pv_segment_paths
+
+
+# --------------------------------------------------------------------------------------------------
+def construct_uac_laa_boundary_path(
+    parameterized_laa_boundary_path: base.ParameterizedPath,
+) -> base.UACPath:
+    uac_marker_specs = spec.uac_direct_marker_specs["laa_boundary"]
+    lower_left = uac_marker_specs["LIPV"]
+    length_alpha = (uac_marker_specs["MV"][0] - uac_marker_specs["LIPV"][0]) / np.sqrt(2)
+    length_beta = (uac_marker_specs["MV"][1] - uac_marker_specs["LIPV"][1]) / np.sqrt(2)
+    rectangle = base.UACRectangle(
+        lower_left_corner=lower_left,
+        length_alpha=length_alpha,
+        length_beta=length_beta,
+    )
+    uac_laa_boundary_path = base.compute_uacs_rectangle(parameterized_laa_boundary_path, rectangle)
+    return uac_laa_boundary_path
+
+
+# --------------------------------------------------------------------------------------------------
+def construct_uac_mv_boundary_path(
+    parameterized_mv_boundary_path: base.ParameterizedPath,
+) -> base.UACPath:
+    uac_marker_specs = spec.uac_direct_marker_specs["mv_boundary"]
+    lower_left = uac_marker_specs["RSPV"]
+    length_alpha = (uac_marker_specs["LSPV"][0] - uac_marker_specs["RSPV"][0])
+    length_beta = (uac_marker_specs["RIPV"][1] - uac_marker_specs["RSPV"][1])
+    rectangle = base.UACRectangle(
+        lower_left_corner=lower_left,
+        length_alpha=length_alpha,
+        length_beta=length_beta,
+    )
+    uac_mv_boundary_path = base.compute_uacs_rectangle(parameterized_mv_boundary_path, rectangle)
+    return uac_mv_boundary_path
 
 
 # --------------------------------------------------------------------------------------------------

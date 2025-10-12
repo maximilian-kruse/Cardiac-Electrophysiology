@@ -34,6 +34,14 @@ class UACCircle:
 
 
 @dataclass
+class UACTriangle:
+    vertex_relative_lengths: tuple[float, float] = (0, 0)
+    vertex_one: tuple[float, float] = (0, 0)
+    vertex_two: tuple[float, float] = (0, 0)
+    vertex_three: tuple[float, float] = (0, 0)
+
+
+@dataclass
 class UACRectangle:
     lower_left_corner: tuple[float, float] = (0, 0)
     length_alpha: float = 0
@@ -47,8 +55,8 @@ class UACLine:
 
 
 # ==================================================================================================
-def get_inner_outer_boundaries(
-    mesh: pv.PolyData, feature_tag: int
+def get_feature_boundary(
+    mesh: pv.PolyData, feature_tag: int, coincides_with_geometry_boundary: bool
 ) -> tuple[np.ndarray, np.ndarray]:
     tm_mesh = tm.Trimesh(mesh.points, mesh.faces.reshape(-1, 4)[:, 1:])
     feature_mesh = mesh.extract_values(feature_tag, scalars="anatomical_tags")
@@ -68,18 +76,14 @@ def get_inner_outer_boundaries(
         feature_boundaries.point_data["vtkOriginalPointIds"]
     ]
     geometry_boundary_inds = geometry_boundaries.point_data["vtkOriginalPointIds"]
-    inner_feature_boundary_inds = np.setdiff1d(feature_boundary_inds, geometry_boundary_inds)
-    outer_feature_boundary_inds = np.intersect1d(feature_boundary_inds, geometry_boundary_inds)
 
-    boundary_paths = []
-    for boundary_inds in [inner_feature_boundary_inds, outer_feature_boundary_inds]:
-        if boundary_inds.size > 0:
-            ordered_boundary_inds = _construct_ordered_path_from_indices(tm_mesh, boundary_inds)
-            boundary_paths.append(ordered_boundary_inds)
-        else:
-            boundary_paths.append(np.array([], dtype=int))
+    if coincides_with_geometry_boundary:
+        feature_boundary_inds = np.intersect1d(feature_boundary_inds, geometry_boundary_inds)
+    else:
+        feature_boundary_inds = np.setdiff1d(feature_boundary_inds, geometry_boundary_inds)
 
-    return boundary_paths
+    ordered_boundary_inds = _construct_ordered_path_from_indices(tm_mesh, feature_boundary_inds)
+    return ordered_boundary_inds
 
 
 # --------------------------------------------------------------------------------------------------
@@ -121,23 +125,20 @@ def _construct_ordered_path_from_indices(
 def split_from_enclosing_boundary(mesh: pv.PolyData, boundary_inds: np.ndarray):
     simplices = np.array(mesh.faces.reshape(-1, 4)[:, 1:])
     not_boundary_inds = np.setdiff1d(np.arange(mesh.number_of_points), boundary_inds)
-    not_boundary_submesh = mesh.extract_points(not_boundary_inds, adjacent_cells=False)
-    split_mesh = not_boundary_submesh.split_bodies()
+    tm_mesh = tm.Trimesh(vertices=mesh.points, faces=mesh.faces.reshape(-1, 4)[:, 1:])
+    mesh_edges = tm_mesh.edges_unique
+    connected_components = tm.graph.connected_components(mesh_edges, nodes=not_boundary_inds)
     submeshes_with_boundary = []
 
-    for submesh in split_mesh:
-        interior_point_inds = submesh.point_data["vtkOriginalPointIds"]
-        interior_cell_inds = submesh.cell_data["vtkOriginalCellIds"]
-        cells_touching_interior = np.where(np.isin(simplices, interior_point_inds).any(axis=1))[0]
-        cells_touching_boundary = np.where(np.isin(simplices, boundary_inds).any(axis=1))[0]
-        cells_touching_both = np.intersect1d(cells_touching_interior, cells_touching_boundary)
-        submesh_with_boundary_cell_inds = np.hstack(
-            [interior_cell_inds, cells_touching_both]
-        ).astype(int)
-        submesh_with_boundary = mesh.extract_cells(submesh_with_boundary_cell_inds)
-        point_inds = submesh_with_boundary.point_data["vtkOriginalPointIds"]
+    for component_inds in connected_components:
+        point_inds_with_boundary = np.sort(
+            np.hstack([component_inds, boundary_inds]).astype(int)
+        )
+        contained_cell_inds = np.where(np.isin(simplices, point_inds_with_boundary).all(axis=1))[0]
+        submesh_with_boundary = mesh.extract_cells(contained_cell_inds)
+        original_point_inds = submesh_with_boundary.point_data["vtkOriginalPointIds"]
         connectivity = np.array(submesh_with_boundary.cells.reshape(-1, 4)[:, 1:])
-        submeshes_with_boundary.append(Submesh(point_inds, connectivity))
+        submeshes_with_boundary.append(Submesh(original_point_inds, connectivity))
 
     return submeshes_with_boundary
 
@@ -178,7 +179,7 @@ def parameterize_path_by_relative_length(
 
     relative_lengths = np.zeros(coordinates.shape[0])
     for i, segment_inds in enumerate(segments):
-        include_endpoint = (i == len(segments) - 1)
+        include_endpoint = i == len(segments) - 1
         start_value = segment_values[i]
         end_value = segment_values[i + 1]
         num_points = segment_inds.size
@@ -203,11 +204,50 @@ def compute_uacs_circle(path: ParameterizedPath, uac_circle: UACCircle) -> UACPa
 
 
 # --------------------------------------------------------------------------------------------------
+def compute_uacs_triangle(path: ParameterizedPath, uac_triangle: UACTriangle) -> UACPath:
+    first_edge = np.where(path.relative_lengths <= uac_triangle.vertex_relative_lengths[0])[0]
+    second_edge = np.where(
+        (path.relative_lengths > uac_triangle.vertex_relative_lengths[0])
+        & (path.relative_lengths <= uac_triangle.vertex_relative_lengths[1])
+    )[0]
+    third_edge = np.where(path.relative_lengths > uac_triangle.vertex_relative_lengths[1])[0]
+    both_coordinates = []
+
+    for i in range(2):
+        coordinate = np.zeros(path.relative_lengths.size)
+        coordinate[first_edge] = (
+            uac_triangle.vertex_one[i]
+            + (uac_triangle.vertex_two[i] - uac_triangle.vertex_one[i])
+            * path.relative_lengths[first_edge]
+            / uac_triangle.vertex_relative_lengths[0]
+        )
+        coordinate[second_edge] = uac_triangle.vertex_two[i] + (
+            uac_triangle.vertex_three[i] - uac_triangle.vertex_two[i]
+        ) * (path.relative_lengths[second_edge] - uac_triangle.vertex_relative_lengths[0]) / (
+            uac_triangle.vertex_relative_lengths[1] - uac_triangle.vertex_relative_lengths[0]
+        )
+        coordinate[third_edge] = uac_triangle.vertex_three[i] + (
+            uac_triangle.vertex_one[i] - uac_triangle.vertex_three[i]
+        ) * (path.relative_lengths[third_edge] - uac_triangle.vertex_relative_lengths[1]) / (
+            1 - uac_triangle.vertex_relative_lengths[1]
+        )
+        both_coordinates.append(coordinate)
+
+    uac_path = UACPath(
+        inds=path.inds,
+        relative_lengths=path.relative_lengths,
+        alpha=both_coordinates[0],
+        beta=both_coordinates[1],
+    )
+    return uac_path
+
+
+# --------------------------------------------------------------------------------------------------
 def compute_uacs_rectangle(path: ParameterizedPath, uac_rectangle: UACRectangle) -> UACPath:
     first_edge = np.where(path.relative_lengths <= 0.25)[0]
-    second_edge = np.where((path.relative_lengths > 0.25) & (path.relative_lengths < 0.5))[0]
-    third_edge = np.where((path.relative_lengths >= 0.5) & (path.relative_lengths < 0.75))[0]
-    fourth_edge = np.where(path.relative_lengths >= 0.75)[0]
+    second_edge = np.where((path.relative_lengths > 0.25) & (path.relative_lengths <= 0.5))[0]
+    third_edge = np.where((path.relative_lengths > 0.5) & (path.relative_lengths <= 0.75))[0]
+    fourth_edge = np.where(path.relative_lengths > 0.75)[0]
     alpha = np.zeros(path.relative_lengths.size)
     beta = np.zeros(path.relative_lengths.size)
 

@@ -92,17 +92,17 @@ def parameterize_paths(
 
 
 # --------------------------------------------------------------------------------------------------
-def construct_uac_boundaries(parameterized_paths: data.ParameterizedPaths) -> data.UACPaths:
-    uac_pv_boundary_paths = comp.construct_uac_pv_boundary_paths(parameterized_paths.pv_boundaries)
+def construct_uac_boundaries(
+    parameterized_paths: data.ParameterizedPaths, markers: data.Markers
+) -> data.UACPaths:
+    uac_pv_boundary_paths = comp.construct_uac_pv_boundary_paths(
+        parameterized_paths.pv_boundaries, markers.pv_segments
+    )
     uac_roof_paths = comp.construct_uac_roof_paths(parameterized_paths.roof)
     uac_diagonal_paths = comp.construct_uac_diagonal_paths(parameterized_paths.diagonal)
     uac_pv_segment_paths = comp.construct_uac_pv_segment_paths(parameterized_paths.pv_segments)
-    uac_laa_boundary_path = base.compute_uacs_circle(
-        parameterized_paths.laa_boundary, spec.uac_form_specs["laa_boundary"]
-    )
-    uac_mv_boundary_path = base.compute_uacs_rectangle(
-        parameterized_paths.mv_boundary, spec.uac_form_specs["mv_boundary"]
-    )
+    uac_laa_boundary_path = comp.construct_uac_laa_boundary_path(parameterized_paths.laa_boundary)
+    uac_mv_boundary_path = comp.construct_uac_mv_boundary_path(parameterized_paths.mv_boundary)
 
     uac_paths = data.UACPaths(
         pv_boundaries=uac_pv_boundary_paths,
