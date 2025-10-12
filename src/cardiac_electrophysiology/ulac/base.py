@@ -199,17 +199,6 @@ def parameterize_path_by_relative_length(
 
 
 # ==================================================================================================
-def compute_uacs_circle(path: ParameterizedPath, uac_circle: UACCircle) -> UACPath:
-    angle = uac_circle.start_angle + 2 * np.pi * uac_circle.orientation * path.relative_lengths
-    alpha = uac_circle.center[0] + uac_circle.radius * np.cos(angle)
-    beta = uac_circle.center[1] + uac_circle.radius * np.sin(angle)
-    uac_path = UACPath(
-        inds=path.inds, relative_lengths=path.relative_lengths, alpha=alpha, beta=beta
-    )
-    return uac_path
-
-
-# --------------------------------------------------------------------------------------------------
 def compute_uacs_triangle(path: ParameterizedPath, uac_triangle: UACTriangle) -> UACPath:
     first_edge = np.where(path.relative_lengths <= uac_triangle.vertex_relative_lengths[0])[0]
     second_edge = np.where(

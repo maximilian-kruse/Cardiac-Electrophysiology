@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, make_dataclass
 
 import numpy as np
 
@@ -26,7 +26,6 @@ class BoundaryPathConfig:
 
 @dataclass
 class ConnectionPathConfig:
-    type: str
     start: str | PointConfig
     end: str | PointConfig
 
@@ -117,8 +116,8 @@ indirect_connection_path_configs = {
         },
     },
     "laa_segments": {
-        "posterior": ConnectionPathConfig(start="LAA", end=("diagonal", "RIPV_MV")),
-        "lateral": ConnectionPathConfig(start=("LAA"), end=("diagonal", "LSPV_MV")),
+        "posterior": ConnectionPathConfig(start=("LAA",), end=("diagonal", "RIPV_MV")),
+        "lateral": ConnectionPathConfig(start=("LAA",), end=("diagonal", "LSPV_MV")),
     }
 }
 
@@ -494,3 +493,4 @@ patch_boundary_configs = {
         },
     },
 }
+
