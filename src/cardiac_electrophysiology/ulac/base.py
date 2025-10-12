@@ -14,6 +14,12 @@ class Submesh:
 
 
 @dataclass
+class Marker:
+    ind: int = None
+    uacs: tuple[float, float] = None
+
+
+@dataclass
 class ParameterizedPath:
     inds: np.ndarray = None
     relative_lengths: np.ndarray = None
@@ -27,31 +33,31 @@ class UACPath(ParameterizedPath):
 
 @dataclass
 class UACCircle:
-    center: tuple[float, float] = (0, 0)
-    radius: float = 0
-    start_angle: float = 0
-    orientation: float = 0
+    center: tuple[float, float] = None
+    radius: float = None
+    start_angle: float = None
+    orientation: float = None
 
 
 @dataclass
 class UACTriangle:
-    vertex_relative_lengths: tuple[float, float] = (0, 0)
-    vertex_one: tuple[float, float] = (0, 0)
-    vertex_two: tuple[float, float] = (0, 0)
-    vertex_three: tuple[float, float] = (0, 0)
+    vertex_relative_lengths: tuple[float, float]= None
+    vertex_one: tuple[float, float]= None
+    vertex_two: tuple[float, float]= None
+    vertex_three: tuple[float, float]= None
 
 
 @dataclass
 class UACRectangle:
-    lower_left_corner: tuple[float, float] = (0, 0)
-    length_alpha: float = 0
-    length_beta: float = 0
+    lower_left_corner: tuple[float, float]= None
+    length_alpha: float = None
+    length_beta: float = None
 
 
 @dataclass
 class UACLine:
-    start: tuple[float, float] = (0, 0)
-    end: tuple[float, float] = (0, 0)
+    start: tuple[float, float] = None
+    end: tuple[float, float] = None
 
 
 # ==================================================================================================
@@ -87,23 +93,6 @@ def get_feature_boundary(
 
 
 # --------------------------------------------------------------------------------------------------
-def construct_shortest_path_between_subsets(
-    mesh: pv.PolyData, subset_one: np.ndarray, subset_two: np.ndarray
-):
-    vertices = np.array(mesh.points)
-    simplices = np.array(mesh.faces.reshape(-1, 4)[:, 1:])
-
-    distances_one = igl.exact_geodesic(V=vertices, F=simplices, VS=subset_one, VT=subset_two)
-    end_point = subset_two[np.argmin(distances_one)]
-    distances_two = igl.exact_geodesic(
-        V=vertices, F=simplices, VS=np.array([end_point]), VT=subset_one
-    )
-    start_point = subset_one[np.argmin(distances_two)]
-    optimal_path = mesh.geodesic(start_point, end_point).point_data["vtkOriginalPointIds"]
-    return np.array(optimal_path, dtype=int)
-
-
-# --------------------------------------------------------------------------------------------------
 def _construct_ordered_path_from_indices(
     tm_mesh: tm.Trimesh, path_indices: np.ndarray
 ) -> np.ndarray:
@@ -119,6 +108,23 @@ def _construct_ordered_path_from_indices(
         ]
     )
     return ordered_path_indices
+
+
+# --------------------------------------------------------------------------------------------------
+def construct_shortest_path_between_subsets(
+    mesh: pv.PolyData, subset_one: np.ndarray, subset_two: np.ndarray
+):
+    vertices = np.array(mesh.points)
+    simplices = np.array(mesh.faces.reshape(-1, 4)[:, 1:])
+
+    distances_one = igl.exact_geodesic(V=vertices, F=simplices, VS=subset_one, VT=subset_two)
+    end_point = subset_two[np.argmin(distances_one)]
+    distances_two = igl.exact_geodesic(
+        V=vertices, F=simplices, VS=np.array([end_point]), VT=subset_one
+    )
+    start_point = subset_one[np.argmin(distances_two)]
+    optimal_path = mesh.geodesic(start_point, end_point).point_data["vtkOriginalPointIds"]
+    return np.array(optimal_path, dtype=int)
 
 
 # --------------------------------------------------------------------------------------------------
