@@ -2,7 +2,7 @@ import numpy as np
 import pyvista as pv
 
 from . import base
-from . import ulac as comp
+from . import interface as comp
 from . import data_structures_old as data
 from . import specifications as spec
 
