@@ -6,8 +6,8 @@ import igl
 import numpy as np
 import pyvista as pv
 
-from . import base
 from . import configuration as config
+from . import construction_base as base
 
 
 # ==================================================================================================
@@ -160,6 +160,7 @@ def compute_patch_uacs(mesh: pv.PolyData, patch_boundaries: dict, segmentation_p
             inside_submesh = submeshes[1]
         else:
             inside_submesh = submeshes[0]
+
         vertices = np.array(mesh.points[inside_submesh.inds])
         simplices = inside_submesh.connectivity
         boundary_inds = np.array(
@@ -167,13 +168,15 @@ def compute_patch_uacs(mesh: pv.PolyData, patch_boundaries: dict, segmentation_p
         )
         uac_coordinates = np.hstack((boundary_path.alpha[:, None], boundary_path.beta[:, None]))
         harmonic_map = igl.harmonic(
-            V=vertices,
-            F=simplices,
-            b=boundary_inds,
-            bc=uac_coordinates,
-            k=1,
+            V=vertices, F=simplices, b=boundary_inds, bc=uac_coordinates, k=1,
         )
-        return harmonic_map, simplices
+        uac_submesh = base.UACSubmesh(
+            inds=inside_submesh.inds,
+            connectivity=simplices,
+            alpha=harmonic_map[:, 0],
+            beta=harmonic_map[:, 1],
+        )
+        return uac_submesh
 
     patch_uacs = apply_to_dict(_compute_patch_uac, config.patch_configs)
     return patch_uacs

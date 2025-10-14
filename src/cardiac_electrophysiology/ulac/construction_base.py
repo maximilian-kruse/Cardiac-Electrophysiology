@@ -32,6 +32,12 @@ class UACPath(ParameterizedPath):
     beta: np.ndarray = None
 
 
+@dataclass
+class UACSubmesh(Submesh):
+    alpha: np.ndarray = None
+    beta: np.ndarray = None
+
+
 # ==================================================================================================
 def get_feature_boundary(
     mesh: pv.PolyData, feature_tag: int, coincides_with_geometry_boundary: bool
@@ -61,7 +67,7 @@ def get_feature_boundary(
         feature_boundary_inds = np.setdiff1d(feature_boundary_inds, geometry_boundary_inds)
 
     ordered_boundary_inds = _construct_ordered_path_from_indices(tm_mesh, feature_boundary_inds)
-    return ordered_boundary_inds
+    return ordered_boundary_inds[:-1]
 
 
 # --------------------------------------------------------------------------------------------------
@@ -164,16 +170,23 @@ def _parameterize_by_relative_length(
 ) -> ParameterizedPath:
     coordinates = np.array(mesh.points[path])
     edge_lengths = np.linalg.norm(coordinates[1:] - coordinates[:-1], axis=1)
+    cumulative_lengths = np.cumsum(edge_lengths)
     relative_path_length = np.zeros(coordinates.shape[0])
-    relative_path_length[1:] = np.cumsum(edge_lengths)
+    relative_path_length[1:] = cumulative_lengths
     relative_path_length /= relative_path_length[-1]
     relative_lengths = np.zeros(coordinates.shape[0])
 
     splitting_inds = relative_marker_inds[1:]
     if 1.0 in marker_values:
         splitting_inds = splitting_inds[:-1]
+        segment_boundaries = marker_values
+    else:
+        recurrent_length = np.linalg.norm(coordinates[0] - coordinates[-1])
+        end_marker = relative_path_length[-1] / (
+            relative_path_length[-1] + recurrent_length / cumulative_lengths[-1]
+        )
+        segment_boundaries = [*marker_values, end_marker]
     segments = np.split(np.arange(path.size), splitting_inds)
-    segment_boundaries = [*marker_values, 1.0] if 1.0 not in marker_values else marker_values
 
     for i, segment_inds in enumerate(segments):
         include_endpoint = i == len(segments) - 1
@@ -200,14 +213,25 @@ def compute_uacs_polygon(
         splitting_points = splitting_points[:-1]
     segment_indices = np.searchsorted(path.relative_lengths, splitting_points)
     segments = np.split(path.relative_lengths, segment_indices)
+    uac_segment_boundaries = np.array(segment_uacs)
+
     if 1.0 not in segment_points:
-        segment_uacs.append(segment_uacs[0])
+        end_uacs = uac_segment_boundaries[-1] + path.relative_lengths[-1] * (
+            uac_segment_boundaries[0] - uac_segment_boundaries[-1]
+        )
+        uac_segment_boundaries = np.vstack((uac_segment_boundaries, end_uacs))
 
     alpha, beta = [], []
     for i, segment in enumerate(segments):
-        segment_alpha, segment_beta = _compute_uacs_edge(
-            segment, segment_uacs[i], segment_uacs[i + 1]
-        )
+        next_segment = segments[i + 1] if i < len(segments) - 1 else None
+        start_point = uac_segment_boundaries[i]
+        if next_segment is not None:
+            end_point = uac_segment_boundaries[i] + segment[-1] / next_segment[0] * (
+                uac_segment_boundaries[i + 1] - uac_segment_boundaries[i]
+            )
+        else:
+            end_point = uac_segment_boundaries[i + 1]
+        segment_alpha, segment_beta = _compute_uacs_edge(segment, start_point, end_point)
         alpha.append(segment_alpha)
         beta.append(segment_beta)
     alpha = np.concatenate(alpha)
