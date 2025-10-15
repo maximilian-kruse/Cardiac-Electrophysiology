@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 
-import igl
-import networkx as nx
+import igraph as ig
 import numpy as np
 import pyvista as pv
 import trimesh as tm
@@ -42,7 +41,6 @@ class UACSubmesh(Submesh):
 def get_feature_boundary(
     mesh: pv.PolyData, feature_tag: int, coincides_with_geometry_boundary: bool
 ) -> tuple[np.ndarray, np.ndarray]:
-    tm_mesh = tm.Trimesh(mesh.points, mesh.faces.reshape(-1, 4)[:, 1:])
     feature_mesh = mesh.extract_values(feature_tag, scalars="anatomical_tags")
     feature_boundaries = feature_mesh.extract_feature_edges(
         boundary_edges=True,
@@ -66,51 +64,45 @@ def get_feature_boundary(
     else:
         feature_boundary_inds = np.setdiff1d(feature_boundary_inds, geometry_boundary_inds)
 
-    ordered_boundary_inds = _construct_ordered_path_from_indices(tm_mesh, feature_boundary_inds)
+    ordered_boundary_inds = _construct_ordered_path_from_indices(mesh, feature_boundary_inds)
     return ordered_boundary_inds[:-1]
 
 
 # --------------------------------------------------------------------------------------------------
 def _construct_ordered_path_from_indices(
-    tm_mesh: tm.Trimesh, path_indices: np.ndarray
+    mesh: pv.PolyData, path_indices: np.ndarray
 ) -> np.ndarray:
+    tm_mesh = tm.Trimesh(mesh.points, mesh.faces.reshape(-1, 4)[:, 1:])
     path_edges = tm_mesh.edges[np.isin(tm_mesh.edges, path_indices).all(axis=1)].flatten()
     local_edges = np.array([np.where(path_indices == ind)[0][0] for ind in path_edges])
     local_edges = local_edges.reshape(-1, 2)
-    path_dict = tm.path.exchange.misc.edges_to_path(local_edges, tm_mesh.vertices[path_indices])
-    ordered_vertices = path_dict["entities"][0].discrete(tm_mesh.vertices[path_indices])
-    ordered_path_indices = np.array(
-        [
-            np.where(np.isclose(tm_mesh.vertices, point).all(axis=1))[0][0]
-            for point in ordered_vertices
-        ]
-    )
-    return ordered_path_indices
+    graph = ig.Graph(local_edges, directed=False)
+    ordered_path, _ = graph.dfs(0)
+    return path_indices[ordered_path]
 
 
 # --------------------------------------------------------------------------------------------------
 def construct_shortest_path_between_subsets(
     mesh: pv.PolyData, subset_one: np.ndarray, subset_two: np.ndarray, inadmissible_set: np.ndarray
 ):
-    vertices = np.array(mesh.points)
-    simplices = np.array(mesh.faces.reshape(-1, 4)[:, 1:])
-    distances_one = igl.exact_geodesic(V=vertices, F=simplices, VS=subset_one, VT=subset_two)
-    end_point = subset_two[np.argmin(distances_one)]
-    distances_two = igl.exact_geodesic(
-        V=vertices, F=simplices, VS=np.array([end_point]), VT=subset_one
-    )
-    start_point = subset_one[np.argmin(distances_two)]
-    inadmissible_points = np.setdiff1d(inadmissible_set, np.array([start_point, end_point]))
-    tm_mesh = tm.Trimesh(vertices, simplices)
+    tm_mesh = tm.Trimesh(vertices=mesh.points, faces=mesh.faces.reshape(-1, 4)[:, 1:])
     edges = tm_mesh.edges_unique
     edge_lengths = tm_mesh.edges_unique_length
+
+    graph = ig.Graph(edges, directed=False)
+    distances = np.array(graph.distances(subset_one, subset_two, weights=edge_lengths))
+    rel_start_point, rel_end_point = np.unravel_index(np.argmin(distances), distances.shape)
+    start_point = subset_one[rel_start_point]
+    end_point = subset_two[rel_end_point]
+
+    inadmissible_points = np.setdiff1d(inadmissible_set, np.array([start_point, end_point]))
     admissible_edges = edges[~np.isin(edges, inadmissible_points).any(axis=1)]
     admissible_edges_lengths = edge_lengths[~np.isin(edges, inadmissible_points).any(axis=1)]
-    weighted_edges = np.hstack((admissible_edges, admissible_edges_lengths[:, None]))
-    graph = nx.Graph()
-    graph.add_weighted_edges_from(weighted_edges, "length")
-    optimal_path = nx.shortest_path(graph, source=start_point, target=end_point, weight="length")
-    return np.array(optimal_path, dtype=int)
+    graph = ig.Graph(admissible_edges, directed=False)
+    shortest_path = np.array(graph.get_shortest_paths(
+        subset_one[rel_start_point], to=subset_two[rel_end_point], weights=admissible_edges_lengths
+    )[0])
+    return np.array(shortest_path, dtype=int)
 
 
 # --------------------------------------------------------------------------------------------------
@@ -172,18 +164,17 @@ def _parameterize_by_relative_length(
     edge_lengths = np.linalg.norm(coordinates[1:] - coordinates[:-1], axis=1)
     cumulative_lengths = np.cumsum(edge_lengths)
     relative_path_length = np.zeros(coordinates.shape[0])
-    relative_path_length[1:] = cumulative_lengths
-    relative_path_length /= relative_path_length[-1]
-    relative_lengths = np.zeros(coordinates.shape[0])
+    relative_path_length[1:] = cumulative_lengths / cumulative_lengths[-1]
+    segmented_lengths = np.zeros(coordinates.shape[0])
 
     splitting_inds = relative_marker_inds[1:]
     if 1.0 in marker_values:
         splitting_inds = splitting_inds[:-1]
         segment_boundaries = marker_values
     else:
-        recurrent_length = np.linalg.norm(coordinates[0] - coordinates[-1])
+        closing_edge_length = np.linalg.norm(coordinates[0] - coordinates[-1])
         end_marker = relative_path_length[-1] / (
-            relative_path_length[-1] + recurrent_length / cumulative_lengths[-1]
+            relative_path_length[-1] + closing_edge_length / cumulative_lengths[-1]
         )
         segment_boundaries = [*marker_values, end_marker]
     segments = np.split(np.arange(path.size), splitting_inds)
@@ -196,9 +187,9 @@ def _parameterize_by_relative_length(
         segment_parameterization = np.linspace(
             start_value, end_value, num_points, endpoint=include_endpoint
         )
-        relative_lengths[segment_inds] = segment_parameterization
+        segmented_lengths[segment_inds] = segment_parameterization
 
-    parameterized_path = ParameterizedPath(path, relative_lengths)
+    parameterized_path = ParameterizedPath(path, segmented_lengths)
     return parameterized_path
 
 
