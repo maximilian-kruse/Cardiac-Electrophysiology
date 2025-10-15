@@ -1,21 +1,9 @@
-from dataclasses import dataclass
 from numbers import Real
 
 import fast_simplification as fs
 import numpy as np
 import pyvista as pv
 import trimesh as tm
-
-
-# ==================================================================================================
-@dataclass
-class FeatureTags:
-    MV: int = None
-    LAA: int = None
-    LIPV: int = None
-    LSPV: int = None
-    RIPV: int = None
-    RSPV: int = None
 
 
 # ==================================================================================================
@@ -33,16 +21,36 @@ def convert_unstructured_to_polydata_mesh(mesh: pv.UnstructuredGrid) -> pv.PolyD
 
 # --------------------------------------------------------------------------------------------------
 def coarsen_mesh_with_feature_tags(
-    mesh: pv.PolyData, decimation_factor: Real, num_smoothing_iters: int = 50
+    mesh: pv.PolyData,
+    tag_values: list[int],
+    decimation_factor: Real,
+    num_smoothing_iters: int = 50,
+    extraction_threshold: Real = 0.5,
 ) -> pv.PolyData:
-    mesh = mesh.cell_data_to_point_data()
+    tag_data = mesh.cell_data["anatomical_tags"]
+    fine_mesh = mesh.copy()
+    fine_mesh.cell_data["anatomical_tags"] = 0
     coarse_mesh = fs.simplify_mesh(mesh, target_reduction=decimation_factor)
     smoothened_mesh = coarse_mesh.smooth(n_iter=num_smoothing_iters, relaxation_factor=0.1)
-    smoothened_mesh = smoothened_mesh.interpolate(mesh, strategy="closest_point")
-    smoothened_mesh = smoothened_mesh.point_data_to_cell_data()
-    smoothened_mesh = _make_feature_tags_discrete_after_interpolation(
-        smoothened_mesh, extraction_threshold=0.5, lower_cutoff=0.1
-    )
+    smoothened_mesh.cell_data["anatomical_tags"] = np.zeros(smoothened_mesh.number_of_cells)
+
+    for tag_value in tag_values:
+        if tag_value == 0:
+            continue
+        tag_mask = tag_data == tag_value
+        fine_mesh.cell_data["anatomical_tags"][tag_mask] = tag_value
+        fine_mesh_point_data = fine_mesh.cell_data_to_point_data()
+        interpolated_mesh = smoothened_mesh.interpolate(
+            fine_mesh_point_data, strategy="closest_point"
+        )
+        feature_mesh = interpolated_mesh.extract_values(
+            ranges=[extraction_threshold * tag_value, float("inf")], scalars="anatomical_tags"
+        )
+        smoothened_mesh.cell_data["anatomical_tags"][
+            feature_mesh.cell_data["vtkOriginalCellIds"]
+        ] = tag_value
+        fine_mesh.cell_data["anatomical_tags"][tag_mask] = 0
+
     smoothened_mesh = fix_feature_tag_defects(smoothened_mesh)
     return smoothened_mesh
 
@@ -57,40 +65,6 @@ def fix_feature_tag_defects(mesh: pv.PolyData) -> pv.PolyData:
 
 
 # ==================================================================================================
-def _make_feature_tags_discrete_after_interpolation(
-    mesh: pv.PolyData, extraction_threshold: Real, lower_cutoff: Real = 0.1
-) -> pv.PolyData:
-    near_zero_tags = np.where(mesh.cell_data["anatomical_tags"] <= lower_cutoff)[0]
-    mesh.cell_data["anatomical_tags"][near_zero_tags] = 0
-    feature_meshes = mesh.extract_values(
-        ranges=[lower_cutoff, float("inf")], scalars="anatomical_tags"
-    )
-    separated_meshes = feature_meshes.split_bodies()
-
-    for feature_mesh in separated_meshes:
-        fixed_feature_mesh = _extract_feature_tags_above_threshold(
-            feature_mesh, extraction_threshold
-        )
-        mesh.cell_data["anatomical_tags"][feature_mesh.cell_data["vtkOriginalCellIds"]] = (
-            fixed_feature_mesh.cell_data["anatomical_tags"]
-        )
-    return mesh
-
-
-# --------------------------------------------------------------------------------------------------
-def _extract_feature_tags_above_threshold(
-    mesh: pv.PolyData, extraction_threshold: Real
-) -> pv.PolyData:
-    maximum_tag_value = np.max(mesh.cell_data["anatomical_tags"])
-    threshold_value = extraction_threshold * maximum_tag_value
-    feature_cell_inds = np.where(mesh.cell_data["anatomical_tags"] >= threshold_value)[0]
-    body_cell_inds = np.setdiff1d(np.arange(mesh.number_of_cells), feature_cell_inds)
-    mesh.cell_data["anatomical_tags"][feature_cell_inds] = maximum_tag_value
-    mesh.cell_data["anatomical_tags"][body_cell_inds] = 0
-    return mesh
-
-
-# --------------------------------------------------------------------------------------------------
 def _fix_boundary_spikes(mesh: pv.PolyData) -> None:
     num_neighbors_per_cell = _get_num_neighbors_per_cell(mesh)
     non_spike_cells = np.where(num_neighbors_per_cell > 1)[0]
