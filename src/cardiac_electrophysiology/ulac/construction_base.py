@@ -8,12 +8,6 @@ import trimesh as tm
 
 # ==================================================================================================
 @dataclass
-class Submesh:
-    inds: np.ndarray = None
-    connectivity: np.ndarray = None
-
-
-@dataclass
 class Marker:
     ind: int = None
     uacs: tuple[float, float] = None
@@ -29,6 +23,12 @@ class ParameterizedPath:
 class UACPath(ParameterizedPath):
     alpha: np.ndarray = None
     beta: np.ndarray = None
+
+
+@dataclass
+class Submesh:
+    inds: np.ndarray = None
+    connectivity: np.ndarray = None
 
 
 @dataclass
