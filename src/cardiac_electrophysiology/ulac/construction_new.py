@@ -1,6 +1,6 @@
 import operator
 from collections.abc import Iterable, Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from functools import reduce
 
 import numpy as np
@@ -15,13 +15,25 @@ type MarkerDict = dict[str, "MarkerDict" | base.Marker]
 type PathDict = dict[str, "PathDict" | np.ndarray[tuple[int], np.dtype[np.float64]]]
 type ParameterizedPathDict = dict[str, "ParameterizedPathDict" | base.ParameterizedPath]
 type UACPathDict = dict[str, "UACPathDict" | base.UACPath]
+type SubmeshBoundaryDict = dict[
+    str, "SubmeshBoundaryDict" | np.ndarray[tuple[int], np.dtype[np.int64]]
+]
+type SubmeshDict = dict[str, "SubmeshDict" | pv.PolyData]
+type UACSubmeshDict = dict[str, "UACSubmeshDict" | pv.PolyData]
 
 type MarkerConfigDict = dict[str, "MarkerConfigDict" | config.MarkerConfig]
 type PathConfigDict = dict[
     str, "PathConfigDict" | config.BoundaryPathConfig | config.ConnectionPathConfig
 ]
+type SubmeshConfigDict = dict[str, "SubmeshConfigDict" | config.SubmeshConfig]
 type AnyDict = (
-    MarkerDict | PathDict | ParameterizedPathDict | UACPathDict | MarkerConfigDict | PathConfigDict
+    MarkerDict
+    | PathDict
+    | ParameterizedPathDict
+    | UACPathDict
+    | MarkerConfigDict
+    | PathConfigDict
+    | SubmeshConfigDict
 )
 
 
@@ -71,7 +83,19 @@ class ULACConstructorSettings:
     feature_tags: dict[str, int]
     path_config: PathConfigDict
     marker_config: MarkerConfigDict
+    submesh_config: SubmeshConfigDict
     segmentation_workflow: Iterable[workflow.Step]
+
+
+@dataclass
+class ULACData:
+    marker_data: MarkerDict | None = None
+    raw_path_data: PathDict | None = None
+    parameterized_path_data: ParameterizedPathDict | None = None
+    uac_path_data: UACPathDict | None = None
+    submesh_boundary_data: SubmeshBoundaryDict | None = None
+    submesh_data: SubmeshDict | None = None
+    uac_submesh_data: UACSubmeshDict | None = None
 
 
 class ULACConstructor:
@@ -81,11 +105,15 @@ class ULACConstructor:
         self._feature_tags = settings.feature_tags
         self._path_config = settings.path_config
         self._marker_config = settings.marker_config
+        self._submesh_config = settings.submesh_config
         self._segmentation_workflow = settings.segmentation_workflow
         self._marker_data = create_empty_dict_from_keys(settings.marker_config)
         self._raw_path_data = create_empty_dict_from_keys(settings.path_config)
         self._parameterized_path_data = create_empty_dict_from_keys(settings.path_config)
         self._uac_path_data = create_empty_dict_from_keys(settings.path_config)
+        self._submesh_boundary_data = create_empty_dict_from_keys(settings.path_config)
+        self._submesh_data = create_empty_dict_from_keys(settings.submesh_config)
+        self._uac_submesh_data = create_empty_dict_from_keys(settings.submesh_config)
 
     # ----------------------------------------------------------------------------------------------
     def construct_segmentation(self) -> None:
@@ -109,55 +137,42 @@ class ULACConstructor:
 
     # ----------------------------------------------------------------------------------------------
     def construct_uacs(self) -> None:
-        key_sequences = nested_dict_keys(self._path_config)
-        for key_sequence in key_sequences:
-            path_config = get_dict_entry(key_sequence, self._path_config)
-            if path_config.parameterization is None:
-                continue
-            print(f"Constructing UACs for Path: {key_sequence}")
-            parameterized_path = get_dict_entry(key_sequence, self._parameterized_path_data)
-            if not isinstance(parameterized_path, base.ParameterizedPath):
-                raise TypeError(
-                    f"Parameterized path {key_sequence} for UAC construction has not been "
-                    "constructed yet."
-                )
-            path_markers = []
-            for marker_config in path_config.parameterization.markers:
-                marker = get_dict_entry(marker_config, self._marker_data)
-                if not isinstance(marker, base.Marker):
-                    raise TypeError(
-                        f"Marker {marker_config} for path {key_sequence} has not been constructed "
-                        "yet."
-                    )
-                path_markers.append(marker)
-            marker_uacs = [marker.uacs for marker in path_markers]
-            marker_values = path_config.parameterization.marker_relative_positions
-            if len(path_markers) == 2:
-                start_uac, end_uac = marker_uacs
-                uac_path = base.compute_uacs_line(parameterized_path, start_uac, end_uac)
-            else:
-                uac_path = base.compute_uacs_polygon(parameterized_path, marker_values, marker_uacs)
-            set_dict_entry(key_sequence, self._uac_path_data, uac_path)
+        self._construct_uac_paths()
+        self._extract_submesh_boundaries()
 
     # ----------------------------------------------------------------------------------------------
     @property
-    def data(self) -> tuple[MarkerDict, PathDict, ParameterizedPathDict, UACPathDict]:
-        return (
-            self._marker_data,
-            self._raw_path_data,
-            self._parameterized_path_data,
-            self._uac_path_data,
+    def data(self) -> ULACData:
+        ulac_data = ULACData(
+            marker_data=self._marker_data,
+            raw_path_data=self._raw_path_data,
+            parameterized_path_data=self._parameterized_path_data,
+            uac_path_data=self._uac_path_data,
+            submesh_boundary_data=self._submesh_boundary_data,
+            submesh_data=self._submesh_data,
+            uac_submesh_data=self._uac_submesh_data,
         )
+        return ulac_data
 
     # ----------------------------------------------------------------------------------------------
     @data.setter
-    def data(self, data: tuple[MarkerDict, PathDict, ParameterizedPathDict, UACPathDict]) -> None:
-        (
-            self._marker_data,
-            self._raw_path_data,
-            self._parameterized_path_data,
-            self._uac_path_data,
-        ) = data
+    def data(self, data: ULACData) -> None:
+        for input_field, class_attr in zip(
+            fields(data),
+            (
+                "_marker_data",
+                "_raw_path_data",
+                "_parameterized_path_data",
+                "_uac_path_data",
+                "_submesh_boundary_data",
+                "_submesh_data",
+                "_uac_submesh_data",
+            ),
+            strict=True,
+        ):
+            input_data = getattr(data, input_field.name)
+            if input_data is not None:
+                setattr(self, class_attr, input_data)
 
     # ----------------------------------------------------------------------------------------------
     def _extract_features(self, apply_to: str | Iterable[str]) -> None:
@@ -181,6 +196,8 @@ class ULACConstructor:
         for key_sequence in key_sequences:
             marker_config = get_dict_entry(key_sequence, self._marker_config)
             print(f"Extracting Marker: {key_sequence}")
+
+            # Get marker from index in raw path
             if marker_config.position_type == "index":
                 containing_path = get_dict_entry(marker_config.path, self._raw_path_data)
                 if not isinstance(containing_path, np.ndarray):
@@ -195,6 +212,8 @@ class ULACConstructor:
                         f"Index {marker_config.position} out of bounds for path "
                         f"{marker_config.path} with length {len(containing_path)}"
                     ) from e
+
+            # Get marker from relative position in parameterized path
             elif marker_config.position_type == "relative":
                 containing_path = get_dict_entry(marker_config.path, self._parameterized_path_data)
                 if not isinstance(containing_path, base.ParameterizedPath):
@@ -216,6 +235,8 @@ class ULACConstructor:
                 raise ValueError(
                     f"Unknown position_type {marker_config.position_type} for marker {key_sequence}"
                 )
+
+            # Set marker
             marker = base.Marker(ind=marker_ind, uacs=marker_config.uacs)
             set_dict_entry(key_sequence, self._marker_data, marker)
 
@@ -228,9 +249,12 @@ class ULACConstructor:
                 continue
             print(f"Constructing Shortest Path: {key_sequence}")
             boundaries = []
+
+            # Get boundary sets
             for boundary_type, boundary_id in zip(
                 path_config.boundary_types, (path_config.start, path_config.end), strict=True
             ):
+                # Option 1: Boundary set is a raw path
                 if boundary_type == "path":
                     boundary_path = get_dict_entry(boundary_id, self._raw_path_data)
                     if not isinstance(boundary_path, np.ndarray):
@@ -238,6 +262,7 @@ class ULACConstructor:
                             f"Raw path {boundary_id} for path {key_sequence} has not been "
                             "constructed yet."
                         )
+                # Option 2: Boundary set is a marker
                 elif boundary_type == "marker":
                     boundary_marker = get_dict_entry(boundary_id, self._marker_data)
                     if not isinstance(boundary_marker, base.Marker):
@@ -252,23 +277,29 @@ class ULACConstructor:
                     )
                 boundaries.append(boundary_path)
 
-            if path_config.inadmissible is None:
-                inadmissible_set = np.array([], dtype=int)
-            else:
-                inadmissible_sets = []
-                for inadmissible in path_config.inadmissible:
-                    inadmissible_path = get_dict_entry(inadmissible, self._raw_path_data)
-                    if not isinstance(inadmissible_path, np.ndarray):
-                        raise TypeError(
-                            f"Raw path {inadmissible} for path {key_sequence} has not been "
-                            "constructed yet."
-                        )
-                    inadmissible_sets.append(inadmissible_path)
-                inadmissible_set = np.unique(np.concatenate(inadmissible_sets))
+            # Get inadmissible sets
+            inadmissible_sets = []
+            for inadmissible in (path_config.inadmissible_contact, path_config.inadmissible_along):
+                if inadmissible is None:
+                    subset = np.array([], dtype=int)
+                else:
+                    subsets = []
+                    for subset_id in inadmissible:
+                        subset_path = get_dict_entry(subset_id, self._raw_path_data)
+                        if not isinstance(subset_path, np.ndarray):
+                            raise TypeError(
+                                f"Raw path {subset_id} for path {key_sequence} has not been "
+                                "constructed yet."
+                            )
+                        subsets.append(subset_path)
+                    subset = np.unique(np.concatenate(subsets))
+                inadmissible_sets.append(subset)
+
+            # Compute shortest Path
             shortest_path = base.construct_shortest_path_between_subsets(
                 self._mesh,
                 *boundaries,
-                inadmissible_set,
+                *inadmissible_sets,
             )
             set_dict_entry(key_sequence, self._raw_path_data, shortest_path)
 
@@ -280,11 +311,15 @@ class ULACConstructor:
             if path_config.parameterization is None:
                 continue
             print(f"Parameterizing Path: {key_sequence}")
+
+            # Get raw path
             path = get_dict_entry(key_sequence, self._raw_path_data)
             if not isinstance(path, np.ndarray):
                 raise TypeError(
                     f"Raw path {key_sequence} for parameterization has not been constructed yet."
                 )
+
+            # Get marker data
             path_markers = []
             for marker_config in path_config.parameterization.markers:
                 marker = get_dict_entry(marker_config, self._marker_data)
@@ -295,6 +330,8 @@ class ULACConstructor:
                     )
                 path_markers.append(marker)
             marker_inds = [marker.ind for marker in path_markers]
+
+            # Parameterize path
             parameterized_path = base.parameterize_path(
                 self._mesh,
                 path,
@@ -302,3 +339,74 @@ class ULACConstructor:
                 path_config.parameterization.marker_relative_positions,
             )
             set_dict_entry(key_sequence, self._parameterized_path_data, parameterized_path)
+
+    # ----------------------------------------------------------------------------------------------
+    def _construct_uac_paths(self) -> None:
+        key_sequences = nested_dict_keys(self._path_config)
+        for key_sequence in key_sequences:
+            path_config = get_dict_entry(key_sequence, self._path_config)
+            if path_config.parameterization is None:
+                continue
+            print(f"Constructing UACs for Path: {key_sequence}")
+
+            # Get parameterized path
+            parameterized_path = get_dict_entry(key_sequence, self._parameterized_path_data)
+            if not isinstance(parameterized_path, base.ParameterizedPath):
+                raise TypeError(
+                    f"Parameterized path {key_sequence} for UAC construction has not been "
+                    "constructed yet."
+                )
+
+            # Get marker data
+            path_markers = []
+            for marker_config in path_config.parameterization.markers:
+                marker = get_dict_entry(marker_config, self._marker_data)
+                if not isinstance(marker, base.Marker):
+                    raise TypeError(
+                        f"Marker {marker_config} for path {key_sequence} has not been constructed "
+                        "yet."
+                    )
+                path_markers.append(marker)
+            marker_uacs = [marker.uacs for marker in path_markers]
+            marker_values = path_config.parameterization.marker_relative_positions
+
+            # Compute UACs
+            if len(path_markers) == 2:
+                start_uac, end_uac = marker_uacs
+                uac_path = base.compute_uacs_line(parameterized_path, start_uac, end_uac)
+            else:
+                uac_path = base.compute_uacs_polygon(parameterized_path, marker_values, marker_uacs)
+            set_dict_entry(key_sequence, self._uac_path_data, uac_path)
+
+    # ----------------------------------------------------------------------------------------------
+    def _extract_submesh_boundaries(self) -> None:
+        key_sequences = nested_dict_keys(self._submesh_config)
+        for key_sequence in key_sequences:
+            submesh_config = get_dict_entry(key_sequence, self._submesh_config)
+            print(f"Extracting boundaries for Submesh: {key_sequence}")
+
+            boundary_inds = []
+            boundary_alpha = []
+            boundary_beta = []
+            for path, portion in zip(
+                submesh_config.boundary_paths, submesh_config.portions, strict=True
+            ):
+                uac_path = get_dict_entry(path, self._uac_path_data)
+                if not isinstance(uac_path, base.UACPath):
+                    raise TypeError(
+                        f"UAC path {uac_path} for submesh {key_sequence} "
+                        "has not been constructed yet."
+                    )
+                relevant_section = np.where(
+                    (uac_path.relative_lengths >= portion[0])
+                    & (uac_path.relative_lengths <= portion[1])
+                )[0]
+                boundary_inds.append(uac_path.inds[relevant_section])
+                boundary_alpha.append(uac_path.alpha[relevant_section])
+                boundary_beta.append(uac_path.beta[relevant_section])
+
+            unique_inds, unique_mask = np.unique(np.concatenate(boundary_inds), return_index=True)
+            unique_alpha = np.concatenate(boundary_alpha)[unique_mask]
+            unique_beta = np.concatenate(boundary_beta)[unique_mask]
+            submesh_boundary = base.UACPath(inds=unique_inds, alpha=unique_alpha, beta=unique_beta)
+            set_dict_entry(key_sequence, self._submesh_boundary_data, submesh_boundary)

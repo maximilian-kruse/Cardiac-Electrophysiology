@@ -11,7 +11,7 @@ class MarkerConfig:
     path: Iterable[str]
     position_type: str
     position: int | float
-    uacs: Iterable[Real]
+    uacs: list[float, float] | tuple[float, float]
 
 
 @dataclass
@@ -32,8 +32,16 @@ class ConnectionPathConfig:
     boundary_types: Iterable[str]
     start: Iterable[str]
     end: Iterable[str]
+    inadmissible_contact: Iterable[Iterable[str]]
+    inadmissible_along: Iterable[Iterable[str]]
     parameterization: ParameterizationConfig
-    inadmissible: Iterable[Iterable[str]] = None
+
+
+@dataclass
+class SubmeshConfig:
+    boundary_paths: Iterable[Iterable[str]]
+    portions: Iterable[list[float, float] | tuple[float, float]]
+    outside_path: Iterable[str]
 
 
 # ==================================================================================================
@@ -68,6 +76,8 @@ path_configs = {
             boundary_types=["marker", "path"],
             start=["LIPV", "inner", "anterior_posterior"],
             end=["LIPV", "outer"],
+            inadmissible_contact=None,
+            inadmissible_along=[["LIPV", "inner"], ["LIPV", "outer"]],
             parameterization=ParameterizationConfig(
                 markers=[
                     ["LIPV", "inner", "anterior_posterior"],
@@ -80,6 +90,8 @@ path_configs = {
             boundary_types=["marker", "path"],
             start=["LIPV", "inner", "septal_lateral"],
             end=["LIPV", "outer"],
+            inadmissible_contact=[["LIPV", "anterior_posterior"]],
+            inadmissible_along=[["LIPV", "inner"], ["LIPV", "outer"]],
             parameterization=ParameterizationConfig(
                 markers=[
                     ["LIPV", "inner", "septal_lateral"],
@@ -92,6 +104,8 @@ path_configs = {
             boundary_types=["marker", "path"],
             start=["LIPV", "inner", "anchor"],
             end=["LIPV", "outer"],
+            inadmissible_contact=[["LIPV", "anterior_posterior"], ["LIPV", "septal_lateral"]],
+            inadmissible_along=[["LIPV", "inner"], ["LIPV", "outer"]],
             parameterization=ParameterizationConfig(
                 markers=[
                     ["LIPV", "inner", "anchor"],
@@ -131,6 +145,8 @@ path_configs = {
             boundary_types=["marker", "path"],
             start=["LSPV", "inner", "anterior_posterior"],
             end=["LSPV", "outer"],
+            inadmissible_contact=None,
+            inadmissible_along=[["LSPV", "inner"], ["LSPV", "outer"]],
             parameterization=ParameterizationConfig(
                 markers=[
                     ["LSPV", "inner", "anterior_posterior"],
@@ -143,6 +159,8 @@ path_configs = {
             boundary_types=["marker", "path"],
             start=["LSPV", "inner", "septal_lateral"],
             end=["LSPV", "outer"],
+            inadmissible_contact=[["LSPV", "anterior_posterior"]],
+            inadmissible_along=[["LSPV", "inner"], ["LSPV", "outer"]],
             parameterization=ParameterizationConfig(
                 markers=[
                     ["LSPV", "inner", "septal_lateral"],
@@ -155,6 +173,8 @@ path_configs = {
             boundary_types=["marker", "path"],
             start=["LSPV", "inner", "anchor"],
             end=["LSPV", "outer"],
+            inadmissible_contact=[["LSPV", "anterior_posterior"], ["LSPV", "septal_lateral"]],
+            inadmissible_along=[["LSPV", "inner"], ["LSPV", "outer"]],
             parameterization=ParameterizationConfig(
                 markers=[
                     ["LSPV", "inner", "anchor"],
@@ -194,6 +214,8 @@ path_configs = {
             boundary_types=["marker", "path"],
             start=["RSPV", "inner", "anterior_posterior"],
             end=["RSPV", "outer"],
+            inadmissible_contact=None,
+            inadmissible_along=[["RSPV", "inner"], ["RSPV", "outer"]],
             parameterization=ParameterizationConfig(
                 markers=[
                     ["RSPV", "inner", "anterior_posterior"],
@@ -206,6 +228,8 @@ path_configs = {
             boundary_types=["marker", "path"],
             start=["RSPV", "inner", "septal_lateral"],
             end=["RSPV", "outer"],
+            inadmissible_contact=[["RSPV", "anterior_posterior"]],
+            inadmissible_along=[["RSPV", "inner"], ["RSPV", "outer"]],
             parameterization=ParameterizationConfig(
                 markers=[
                     ["RSPV", "inner", "septal_lateral"],
@@ -218,6 +242,8 @@ path_configs = {
             boundary_types=["marker", "path"],
             start=["RSPV", "inner", "anchor"],
             end=["RSPV", "outer"],
+            inadmissible_contact=[["RSPV", "anterior_posterior"], ["RSPV", "septal_lateral"]],
+            inadmissible_along=[["RSPV", "inner"], ["RSPV", "outer"]],
             parameterization=ParameterizationConfig(
                 markers=[
                     ["RSPV", "inner", "anchor"],
@@ -257,6 +283,8 @@ path_configs = {
             boundary_types=["marker", "path"],
             start=["RIPV", "inner", "anterior_posterior"],
             end=["RIPV", "outer"],
+            inadmissible_contact=None,
+            inadmissible_along=[["RIPV", "inner"], ["RIPV", "outer"]],
             parameterization=ParameterizationConfig(
                 markers=[
                     ["RIPV", "inner", "anterior_posterior"],
@@ -269,6 +297,8 @@ path_configs = {
             boundary_types=["marker", "path"],
             start=["RIPV", "inner", "septal_lateral"],
             end=["RIPV", "outer"],
+            inadmissible_contact=[["RIPV", "anterior_posterior"]],
+            inadmissible_along=[["RIPV", "inner"], ["RIPV", "outer"]],
             parameterization=ParameterizationConfig(
                 markers=[
                     ["RIPV", "inner", "septal_lateral"],
@@ -281,6 +311,8 @@ path_configs = {
             boundary_types=["marker", "path"],
             start=["RIPV", "inner", "anchor"],
             end=["RIPV", "outer"],
+            inadmissible_contact=[["RIPV", "anterior_posterior"], ["RIPV", "septal_lateral"]],
+            inadmissible_along=[["RIPV", "inner"], ["RIPV", "outer"]],
             parameterization=ParameterizationConfig(
                 markers=[
                     ["RIPV", "inner", "anchor"],
@@ -319,6 +351,8 @@ path_configs = {
             boundary_types=["path", "path"],
             start=["LIPV", "inner"],
             end=["LSPV", "inner"],
+            inadmissible_contact=None,
+            inadmissible_along=[["LIPV", "inner"], ["LSPV", "inner"]],
             parameterization=ParameterizationConfig(
                 markers=[
                     ["LIPV", "inner", "anterior_posterior"],
@@ -331,6 +365,8 @@ path_configs = {
             boundary_types=["path", "path"],
             start=["LSPV", "inner"],
             end=["RSPV", "inner"],
+            inadmissible_contact=None,
+            inadmissible_along=[["LSPV", "inner"], ["RSPV", "inner"]],
             parameterization=ParameterizationConfig(
                 markers=[
                     ["LSPV", "inner", "septal_lateral"],
@@ -343,6 +379,8 @@ path_configs = {
             boundary_types=["path", "path"],
             start=["RSPV", "inner"],
             end=["RIPV", "inner"],
+            inadmissible_contact=None,
+            inadmissible_along=[["RSPV", "inner"], ["RIPV", "inner"]],
             parameterization=ParameterizationConfig(
                 markers=[
                     ["RSPV", "inner", "anterior_posterior"],
@@ -355,6 +393,8 @@ path_configs = {
             boundary_types=["path", "path"],
             start=["RIPV", "inner"],
             end=["LIPV", "inner"],
+            inadmissible_contact=None,
+            inadmissible_along=[["RIPV", "inner"], ["LIPV", "inner"]],
             parameterization=ParameterizationConfig(
                 markers=[
                     ["RIPV", "inner", "septal_lateral"],
@@ -370,6 +410,8 @@ path_configs = {
             boundary_types=["path", "path"],
             start=["LIPV", "inner"],
             end=["LAA"],
+            inadmissible_contact=None,
+            inadmissible_along=[["LIPV", "inner"], ["LAA"]],
             parameterization=ParameterizationConfig(
                 markers=[
                     ["LIPV", "inner", "anchor"],
@@ -382,6 +424,8 @@ path_configs = {
             boundary_types=["path", "path"],
             start=["LAA"],
             end=["MV"],
+            inadmissible_contact=None,
+            inadmissible_along=[["LAA"], ["MV"]],
             parameterization=ParameterizationConfig(
                 markers=[
                     ["LAA", "MV"],
@@ -394,7 +438,8 @@ path_configs = {
             boundary_types=["path", "path"],
             start=["LSPV", "inner"],
             end=["MV"],
-            inadmissible=(["LAA"], ["anchor", "LIPV_LAA"], ["anchor", "LAA_MV"]),
+            inadmissible_contact=(["LAA"], ["anchor", "LIPV_LAA"], ["anchor", "LAA_MV"]),
+            inadmissible_along=[["LSPV", "inner"], ["MV"]],
             parameterization=ParameterizationConfig(
                 markers=[
                     ["LSPV", "inner", "anchor"],
@@ -407,6 +452,8 @@ path_configs = {
             boundary_types=["path", "path"],
             start=["RSPV", "inner"],
             end=["MV"],
+            inadmissible_contact=None,
+            inadmissible_along=[["RSPV", "inner"], ["MV"]],
             parameterization=ParameterizationConfig(
                 markers=[
                     ["RSPV", "inner", "anchor"],
@@ -419,7 +466,8 @@ path_configs = {
             boundary_types=["path", "path"],
             start=["RIPV", "inner"],
             end=["MV"],
-            inadmissible=(["anchor", "RSPV_MV"],),
+            inadmissible_contact=(["anchor", "RSPV_MV"],),
+            inadmissible_along=[["RIPV", "inner"], ["MV"]],
             parameterization=ParameterizationConfig(
                 markers=[
                     ["RIPV", "inner", "anchor"],
@@ -432,7 +480,8 @@ path_configs = {
             boundary_types=["path", "marker"],
             start=["LAA"],
             end=["anchor", "LSPV_MV"],
-            inadmissible=(["MV"],),
+            inadmissible_contact=(["MV"],),
+            inadmissible_along=[["LAA"], ["anchor", "LSPV_MV"]],
             parameterization=ParameterizationConfig(
                 markers=[
                     ["LAA", "lateral"],
@@ -445,7 +494,8 @@ path_configs = {
             boundary_types=["path", "marker"],
             start=["LAA"],
             end=["anchor", "RIPV_MV"],
-            inadmissible=(["MV"],),
+            inadmissible_contact=(["MV"],),
+            inadmissible_along=[["LAA"], ["anchor", "RIPV_MV"]],
             parameterization=ParameterizationConfig(
                 markers=[
                     ["LAA", "posterior"],
@@ -730,9 +780,28 @@ marker_configs = {
             position_type="relative",
             position=LAA_POSTERIOR_RATIO,
             uacs=(
-                RIPV_CENTER[0] - LAA_POSTERIOR_RATIO * (1 - RIPV_CENTER[0]),
-                RIPV_CENTER[1] + LAA_POSTERIOR_RATIO * (1 - RIPV_CENTER[1]),
+                (1 - LAA_POSTERIOR_RATIO) * RIPV_CENTER[0],
+                (1 + LAA_POSTERIOR_RATIO) * RIPV_CENTER[1],
             ),
         ),
     },
+}
+
+
+# ==================================================================================================
+submesh_configs = {
+    "roof": SubmeshConfig(
+        boundary_paths=[
+            ["LIPV", "inner"],
+            ["LSPV", "inner"],
+            ["RSPV", "inner"],
+            ["RIPV", "inner"],
+            ["roof", "LIPV_LSPV"],
+            ["roof", "LSPV_RSPV"],
+            ["roof", "RSPV_RIPV"],
+            ["roof", "RIPV_LIPV"],
+        ],
+        portions=[(0, 1 / 4), (0, 1 / 4), (0, 1 / 4), (0, 1 / 4), (0, 1), (0, 1), (0, 1), (0, 1)],
+        outside_path=["MV"],
+    )
 }

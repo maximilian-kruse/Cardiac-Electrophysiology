@@ -69,9 +69,7 @@ def get_feature_boundary(
 
 
 # --------------------------------------------------------------------------------------------------
-def _construct_ordered_path_from_indices(
-    mesh: pv.PolyData, path_indices: np.ndarray
-) -> np.ndarray:
+def _construct_ordered_path_from_indices(mesh: pv.PolyData, path_indices: np.ndarray) -> np.ndarray:
     tm_mesh = tm.Trimesh(mesh.points, mesh.faces.reshape(-1, 4)[:, 1:])
     path_edges = tm_mesh.edges[np.isin(tm_mesh.edges, path_indices).all(axis=1)].flatten()
     local_edges = np.array([np.where(path_indices == ind)[0][0] for ind in path_edges])
@@ -83,25 +81,34 @@ def _construct_ordered_path_from_indices(
 
 # --------------------------------------------------------------------------------------------------
 def construct_shortest_path_between_subsets(
-    mesh: pv.PolyData, subset_one: np.ndarray, subset_two: np.ndarray, inadmissible_set: np.ndarray
+    mesh: pv.PolyData,
+    subset_one: np.ndarray,
+    subset_two: np.ndarray,
+    inadmissible_contact_set: np.ndarray,
+    inadmissible_along_set: np.ndarray,
 ):
     tm_mesh = tm.Trimesh(vertices=mesh.points, faces=mesh.faces.reshape(-1, 4)[:, 1:])
     edges = tm_mesh.edges_unique
     edge_lengths = tm_mesh.edges_unique_length
+    inadmissible_contact_edges = np.where(np.isin(edges, inadmissible_contact_set).any(axis=1))[0]
+    inadmissible_along_edges = np.where(np.isin(edges, inadmissible_along_set).all(axis=1))[0]
+    inadmissible_edges = np.unique(
+        np.concatenate([inadmissible_contact_edges, inadmissible_along_edges])
+    )
+    admissible_edges = np.delete(edges, inadmissible_edges, axis=0)
+    admissible_edges_lengths = np.delete(edge_lengths, inadmissible_edges, axis=0)
 
-    graph = ig.Graph(edges, directed=False)
-    distances = np.array(graph.distances(subset_one, subset_two, weights=edge_lengths))
-    rel_start_point, rel_end_point = np.unravel_index(np.argmin(distances), distances.shape)
-    start_point = subset_one[rel_start_point]
-    end_point = subset_two[rel_end_point]
-
-    inadmissible_points = np.setdiff1d(inadmissible_set, np.array([start_point, end_point]))
-    admissible_edges = edges[~np.isin(edges, inadmissible_points).any(axis=1)]
-    admissible_edges_lengths = edge_lengths[~np.isin(edges, inadmissible_points).any(axis=1)]
     graph = ig.Graph(admissible_edges, directed=False)
-    shortest_path = np.array(graph.get_shortest_paths(
-        subset_one[rel_start_point], to=subset_two[rel_end_point], weights=admissible_edges_lengths
-    )[0])
+    distances = np.array(graph.distances(subset_one, subset_two, weights=admissible_edges_lengths))
+    rel_start_point, rel_end_point = np.unravel_index(np.argmin(distances), distances.shape)
+    graph = ig.Graph(admissible_edges, directed=False)
+    shortest_path = np.array(
+        graph.get_shortest_paths(
+            subset_one[rel_start_point],
+            to=subset_two[rel_end_point],
+            weights=admissible_edges_lengths,
+        )[0]
+    )
     return np.array(shortest_path, dtype=int)
 
 
