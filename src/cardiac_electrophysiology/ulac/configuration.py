@@ -11,11 +11,11 @@ class MarkerConfig:
     path: Iterable[str]
     position_type: str
     position: int | float
-    uacs: list[float, float] | tuple[float, float]
 
 
 @dataclass
 class ParameterizationConfig:
+    path: Iterable[str]
     markers: Iterable[Iterable[str]]
     marker_relative_positions: Iterable[Real]
 
@@ -36,9 +36,15 @@ class ConnectionPathConfig:
 
 
 @dataclass
+class UACConfig:
+    path: Iterable[str]
+    markers: Iterable[Iterable[float]]
+    uacs: Iterable[tuple[float, float]]
+
+
+@dataclass
 class SubmeshConfig:
     boundary_paths: Iterable[Iterable[str]]
-    portions: Iterable[list[float, float] | tuple[float, float]]
     outside_path: Iterable[str]
 
 
@@ -269,316 +275,29 @@ path_configs = {
 
 
 # ==================================================================================================
-PV_SEPTAL_LATERAL = 1 / 4
-PV_ANCHOR = 5 / 8
-
 parameterization_configs = {
-    # ----------------------------------------------------------------------------------------------
-    "LIPV": {
-        "inner": ParameterizationConfig(
-            markers=[
-                ["LIPV", "inner", "anterior_posterior"],
-                ["LIPV", "inner", "septal_lateral"],
-                ["LIPV", "inner", "anchor"],
-            ],
-            marker_relative_positions=[0, PV_SEPTAL_LATERAL, PV_ANCHOR],
-        ),
-        "outer": ParameterizationConfig(
-            markers=[
-                ["LIPV", "outer", "anterior_posterior"],
-                ["LIPV", "outer", "septal_lateral"],
-                ["LIPV", "outer", "anchor"],
-            ],
-            marker_relative_positions=[0, 1 / 4, 5 / 8],
-        ),
-        "anterior_posterior": ParameterizationConfig(
-            markers=[
-                ["LIPV", "inner", "anterior_posterior"],
-                ["LIPV", "outer", "anterior_posterior"],
-            ],
-            marker_relative_positions=[0, 1],
-        ),
-        "septal_lateral": ParameterizationConfig(
-            markers=[
-                ["LIPV", "inner", "septal_lateral"],
-                ["LIPV", "outer", "septal_lateral"],
-            ],
-            marker_relative_positions=[0, 1],
-        ),
-        "anchor": ParameterizationConfig(
-            markers=[
-                ["LIPV", "inner", "anchor"],
-                ["LIPV", "outer", "anchor"],
-            ],
-            marker_relative_positions=[0, 1],
-        ),
-    },
-    # ----------------------------------------------------------------------------------------------
-    "LSPV": {
-        "inner": ParameterizationConfig(
-            markers=[
-                ["LSPV", "inner", "anterior_posterior"],
-                ["LSPV", "inner", "septal_lateral"],
-                ["LSPV", "inner", "anchor"],
-            ],
-            marker_relative_positions=[0, PV_SEPTAL_LATERAL, PV_ANCHOR],
-        ),
-        "outer": ParameterizationConfig(
-            markers=[
-                ["LSPV", "outer", "anterior_posterior"],
-                ["LSPV", "outer", "septal_lateral"],
-                ["LSPV", "outer", "anchor"],
-            ],
-            marker_relative_positions=[0, PV_SEPTAL_LATERAL, PV_ANCHOR],
-        ),
-        "anterior_posterior": ParameterizationConfig(
-            markers=[
-                ["LSPV", "inner", "anterior_posterior"],
-                ["LSPV", "outer", "anterior_posterior"],
-            ],
-            marker_relative_positions=[0, 1],
-        ),
-        "septal_lateral": ParameterizationConfig(
-            markers=[
-                ["LSPV", "inner", "septal_lateral"],
-                ["LSPV", "outer", "septal_lateral"],
-            ],
-            marker_relative_positions=[0, 1],
-        ),
-        "anchor": ParameterizationConfig(
-            markers=[
-                ["LSPV", "inner", "anchor"],
-                ["LSPV", "outer", "anchor"],
-            ],
-            marker_relative_positions=[0, 1],
-        ),
-    },
-    # ----------------------------------------------------------------------------------------------
-    "RSPV": {
-        "inner": ParameterizationConfig(
-            markers=[
-                ["RSPV", "inner", "anterior_posterior"],
-                ["RSPV", "inner", "septal_lateral"],
-                ["RSPV", "inner", "anchor"],
-            ],
-            marker_relative_positions=[0, PV_SEPTAL_LATERAL, PV_ANCHOR],
-        ),
-        "outer": ParameterizationConfig(
-            markers=[
-                ["RSPV", "outer", "anterior_posterior"],
-                ["RSPV", "outer", "septal_lateral"],
-                ["RSPV", "outer", "anchor"],
-            ],
-            marker_relative_positions=[0, PV_SEPTAL_LATERAL, PV_ANCHOR],
-        ),
-        "anterior_posterior": ParameterizationConfig(
-            markers=[
-                ["RSPV", "inner", "anterior_posterior"],
-                ["RSPV", "outer", "anterior_posterior"],
-            ],
-            marker_relative_positions=[0, 1],
-        ),
-        "septal_lateral": ParameterizationConfig(
-            markers=[
-                ["RSPV", "inner", "septal_lateral"],
-                ["RSPV", "outer", "septal_lateral"],
-            ],
-            marker_relative_positions=[0, 1],
-        ),
-        "anchor": ParameterizationConfig(
-            markers=[
-                ["RSPV", "inner", "anchor"],
-                ["RSPV", "outer", "anchor"],
-            ],
-            marker_relative_positions=[0, 1],
-        ),
-    },
-    # ----------------------------------------------------------------------------------------------
-    "RIPV": {
-        "inner": ParameterizationConfig(
-            markers=[
-                ["RIPV", "inner", "anterior_posterior"],
-                ["RIPV", "inner", "septal_lateral"],
-                ["RIPV", "inner", "anchor"],
-            ],
-            marker_relative_positions=[0, PV_SEPTAL_LATERAL, PV_ANCHOR],
-        ),
-        "outer": ParameterizationConfig(
-            markers=[
-                ["RIPV", "outer", "anterior_posterior"],
-                ["RIPV", "outer", "septal_lateral"],
-                ["RIPV", "outer", "anchor"],
-            ],
-            marker_relative_positions=[0, PV_SEPTAL_LATERAL, PV_ANCHOR],
-        ),
-        "anterior_posterior": ParameterizationConfig(
-            markers=[
-                ["RIPV", "inner", "anterior_posterior"],
-                ["RIPV", "outer", "anterior_posterior"],
-            ],
-            marker_relative_positions=[0, 1],
-        ),
-        "septal_lateral": ParameterizationConfig(
-            markers=[
-                ["RIPV", "inner", "septal_lateral"],
-                ["RIPV", "outer", "septal_lateral"],
-            ],
-            marker_relative_positions=[0, 1],
-        ),
-        "anchor": ParameterizationConfig(
-            markers=[
-                ["RIPV", "inner", "anchor"],
-                ["RIPV", "outer", "anchor"],
-            ],
-            marker_relative_positions=[0, 1],
-        ),
-    },
-    # ----------------------------------------------------------------------------------------------
-    "LAA": {
-        "LAA": ParameterizationConfig(
-            markers=[
-                ["LAA", "LIPV", "LAA"],
-                ["LAA", "lateral", "LAA"],
-                ["LAA", "MV", "LAA"],
-                ["LAA", "posterior", "LAA"],
-            ],
-            marker_relative_positions=[0, 1 / 4, 1 / 2, 3 / 4],
-        ),
-        "lateral": ParameterizationConfig(
-            markers=[
-                ["LAA", "LIPV", "lateral"],
-                ["LAA", "lateral", "lateral"],
-                ["LAA", "MV", "lateral"],
-            ],
-            marker_relative_positions=[0, 1 / 4, 1 / 2],
-        ),
-        "posterior": ParameterizationConfig(
-            markers=[
-                ["LAA", "LIPV", "posterior"],
-                ["LAA", "posterior", "posterior"],
-                ["LAA", "MV", "posterior"],
-            ],
-            marker_relative_positions=[0, 1 / 4, 1 / 2],
-        ),
-    },
-    # ------------------------------------------------------------------------------------------------------
-    "MV": {
-        "anterior": ParameterizationConfig(
-            markers=[
-                ["MV", "RSPV", "anterior"],
-                ["MV", "LSPV", "anterior"],
-            ],
-            marker_relative_positions=[]
-        ),
-    },
-    "MV": ParameterizationConfig(
-        markers=[
-            ["MV", "RSPV"],
-            ["MV", "LSPV"],
-            ["MV", "LAA"],
-            ["MV", "RIPV"],
-        ],
-        marker_relative_positions=[0, 1 / 4, 1 / 2, 3 / 4],
-    ),
-    # roof
-    "roof": {
-        "LIPV_LSPV": ParameterizationConfig(
-            markers=[
-                ["LIPV", "inner", "anterior_posterior"],
-                ["LSPV", "inner", "anterior_posterior"],
-            ],
-            marker_relative_positions=[0, 1],
-        ),
-        "LSPV_RSPV": ParameterizationConfig(
-            markers=[
-                ["LSPV", "inner", "septal_lateral"],
-                ["RSPV", "inner", "septal_lateral"],
-            ],
-            marker_relative_positions=[0, 1],
-        ),
-        "RSPV_RIPV": ParameterizationConfig(
-            markers=[
-                ["RSPV", "inner", "anterior_posterior"],
-                ["RIPV", "inner", "anterior_posterior"],
-            ],
-            marker_relative_positions=[0, 1],
-        ),
-        "RIPV_LIPV": ParameterizationConfig(
-            markers=[
-                ["RIPV", "inner", "septal_lateral"],
-                ["LIPV", "inner", "septal_lateral"],
-            ],
-            marker_relative_positions=[0, 1],
-        ),
-    },
-    # anchor
     "anchor": {
-        "LIPV_LAA": ParameterizationConfig(
-            markers=[
-                ["LIPV", "inner", "anchor"],
-                ["LAA", "LIPV"],
-            ],
-            marker_relative_positions=[0, 1],
-        ),
-        "LAA_MV": ParameterizationConfig(
-            markers=[
-                ["LAA", "MV"],
-                ["MV", "LAA"],
-            ],
-            marker_relative_positions=[0, 1],
-        ),
         "LSPV_MV": ParameterizationConfig(
+            path=["anchor", "LSPV_MV"],
             markers=[
                 ["LSPV", "inner", "anchor"],
                 ["MV", "LSPV"],
             ],
             marker_relative_positions=[0, 1],
         ),
-        "RSPV_MV": ParameterizationConfig(
-            markers=[
-                ["RSPV", "inner", "anchor"],
-                ["MV", "RSPV"],
-            ],
-            marker_relative_positions=[0, 1],
-        ),
         "RIPV_MV": ParameterizationConfig(
+            path=["anchor", "RIPV_MV"],
             markers=[
                 ["RIPV", "inner", "anchor"],
                 ["MV", "RIPV"],
             ],
             marker_relative_positions=[0, 1],
         ),
-        "LAA_lateral": ParameterizationConfig(
-            markers=[
-                ["LAA", "lateral"],
-                ["anchor", "LSPV_MV"],
-            ],
-            marker_relative_positions=[0, 1],
-        ),
-        "LAA_posterior": ParameterizationConfig(
-            markers=[
-                ["LAA", "posterior"],
-                ["anchor", "RIPV_MV"],
-            ],
-            marker_relative_positions=[0, 1],
-        ),
-    },
+    }
 }
 
 
 # ==================================================================================================
-PV_INNER_RADIUS = 0.08
-PV_OUTER_RADIUS = 0.04
-LAA_RADIUS = 0.15
-LIPV_CENTER = (2 / 3, 3 / 5)
-LSPV_CENTER = (2 / 3, 2 / 5)
-RIPV_CENTER = (1 / 3, 3 / 5)
-RSPV_CENTER = (1 / 3, 2 / 5)
-LAA_CENTER = (5 / 6, 5 / 6)
-LAA_LATERAL_RATIO = 1 - (1 - LAA_CENTER[0]) / (1 - LIPV_CENTER[0])
-LAA_POSTERIOR_RATIO = 1 - (1 - LAA_CENTER[1]) / (1 - LSPV_CENTER[1])
-
-
 marker_configs = {
     # ----------------------------------------------------------------------------------------------
     "LIPV": {
@@ -587,19 +306,16 @@ marker_configs = {
                 path=["roof", "LIPV_LSPV"],
                 position_type="index",
                 position=0,
-                uacs=(LIPV_CENTER[0], LIPV_CENTER[1] - PV_INNER_RADIUS),
             ),
             "septal_lateral": MarkerConfig(
                 path=["roof", "RIPV_LIPV"],
                 position_type="index",
                 position=-1,
-                uacs=(LIPV_CENTER[0] - PV_INNER_RADIUS, LIPV_CENTER[1]),
             ),
             "anchor": MarkerConfig(
                 path=["anchor", "LIPV_LAA"],
                 position_type="index",
                 position=0,
-                uacs=(LIPV_CENTER[0] + PV_INNER_RADIUS / 2, LIPV_CENTER[1] + PV_INNER_RADIUS / 2),
             ),
         },
         "outer": {
@@ -607,22 +323,16 @@ marker_configs = {
                 path=["LIPV", "anterior_posterior"],
                 position_type="index",
                 position=-1,
-                uacs=(LIPV_CENTER[0], LIPV_CENTER[1] - PV_OUTER_RADIUS),
             ),
             "septal_lateral": MarkerConfig(
                 path=["LIPV", "septal_lateral"],
                 position_type="index",
                 position=-1,
-                uacs=(LIPV_CENTER[0] - PV_OUTER_RADIUS, LIPV_CENTER[1]),
             ),
             "anchor": MarkerConfig(
                 path=["LIPV", "anchor"],
                 position_type="index",
                 position=-1,
-                uacs=(
-                    LIPV_CENTER[0] + PV_OUTER_RADIUS / np.sqrt(2),
-                    LIPV_CENTER[1] + PV_OUTER_RADIUS / np.sqrt(2),
-                ),
             ),
         },
     },
@@ -632,22 +342,16 @@ marker_configs = {
                 path=["roof", "LIPV_LSPV"],
                 position_type="index",
                 position=-1,
-                uacs=(LSPV_CENTER[0], LSPV_CENTER[1] + PV_INNER_RADIUS),
             ),
             "septal_lateral": MarkerConfig(
                 path=["roof", "LSPV_RSPV"],
                 position_type="index",
                 position=0,
-                uacs=(LSPV_CENTER[0] - PV_INNER_RADIUS, LSPV_CENTER[1]),
             ),
             "anchor": MarkerConfig(
                 path=["anchor", "LSPV_MV"],
                 position_type="index",
                 position=0,
-                uacs=(
-                    LSPV_CENTER[0] + PV_INNER_RADIUS / np.sqrt(2),
-                    LSPV_CENTER[1] - PV_INNER_RADIUS / np.sqrt(2),
-                ),
             ),
         },
         "outer": {
@@ -655,22 +359,16 @@ marker_configs = {
                 path=["LSPV", "anterior_posterior"],
                 position_type="index",
                 position=-1,
-                uacs=(LSPV_CENTER[0], LSPV_CENTER[1] + PV_OUTER_RADIUS),
             ),
             "septal_lateral": MarkerConfig(
                 path=["LSPV", "septal_lateral"],
                 position_type="index",
                 position=-1,
-                uacs=(LSPV_CENTER[0] - PV_OUTER_RADIUS, LSPV_CENTER[1]),
             ),
             "anchor": MarkerConfig(
                 path=["LSPV", "anchor"],
                 position_type="index",
                 position=-1,
-                uacs=(
-                    LSPV_CENTER[0] + PV_OUTER_RADIUS / np.sqrt(2),
-                    LSPV_CENTER[1] - PV_OUTER_RADIUS / np.sqrt(2),
-                ),
             ),
         },
     },
@@ -680,22 +378,16 @@ marker_configs = {
                 path=["roof", "RSPV_RIPV"],
                 position_type="index",
                 position=0,
-                uacs=(RSPV_CENTER[0], RSPV_CENTER[1] + PV_INNER_RADIUS),
             ),
             "septal_lateral": MarkerConfig(
                 path=["roof", "LSPV_RSPV"],
                 position_type="index",
                 position=-1,
-                uacs=(RSPV_CENTER[0] + PV_INNER_RADIUS, RSPV_CENTER[1]),
             ),
             "anchor": MarkerConfig(
                 path=["anchor", "RSPV_MV"],
                 position_type="index",
                 position=0,
-                uacs=(
-                    RSPV_CENTER[0] - PV_INNER_RADIUS / np.sqrt(2),
-                    RSPV_CENTER[1] - PV_INNER_RADIUS / np.sqrt(2),
-                ),
             ),
         },
         "outer": {
@@ -703,22 +395,16 @@ marker_configs = {
                 path=["RSPV", "anterior_posterior"],
                 position_type="index",
                 position=-1,
-                uacs=(RSPV_CENTER[0], RSPV_CENTER[1] + PV_OUTER_RADIUS),
             ),
             "septal_lateral": MarkerConfig(
                 path=["RSPV", "septal_lateral"],
                 position_type="index",
                 position=-1,
-                uacs=(RSPV_CENTER[0] + PV_OUTER_RADIUS, RSPV_CENTER[1]),
             ),
             "anchor": MarkerConfig(
                 path=["RSPV", "anchor"],
                 position_type="index",
                 position=-1,
-                uacs=(
-                    RSPV_CENTER[0] - PV_OUTER_RADIUS / np.sqrt(2),
-                    RSPV_CENTER[1] - PV_OUTER_RADIUS / np.sqrt(2),
-                ),
             ),
         },
     },
@@ -728,22 +414,16 @@ marker_configs = {
                 path=["roof", "RSPV_RIPV"],
                 position_type="index",
                 position=-1,
-                uacs=(RIPV_CENTER[0], RIPV_CENTER[1] - PV_INNER_RADIUS),
             ),
             "septal_lateral": MarkerConfig(
                 path=["roof", "RIPV_LIPV"],
                 position_type="index",
                 position=0,
-                uacs=(RIPV_CENTER[0] + PV_INNER_RADIUS, RIPV_CENTER[1]),
             ),
             "anchor": MarkerConfig(
                 path=["anchor", "RIPV_MV"],
                 position_type="index",
                 position=0,
-                uacs=(
-                    RIPV_CENTER[0] - PV_INNER_RADIUS / np.sqrt(2),
-                    RIPV_CENTER[1] + PV_INNER_RADIUS / np.sqrt(2),
-                ),
             ),
         },
         "outer": {
@@ -751,22 +431,16 @@ marker_configs = {
                 path=["RIPV", "anterior_posterior"],
                 position_type="index",
                 position=-1,
-                uacs=(RIPV_CENTER[0], RIPV_CENTER[1] - PV_OUTER_RADIUS),
             ),
             "septal_lateral": MarkerConfig(
                 path=["RIPV", "septal_lateral"],
                 position_type="index",
                 position=-1,
-                uacs=(RIPV_CENTER[0] + PV_OUTER_RADIUS, RIPV_CENTER[1]),
             ),
             "anchor": MarkerConfig(
                 path=["RIPV", "anchor"],
                 position_type="index",
                 position=-1,
-                uacs=(
-                    RIPV_CENTER[0] - PV_OUTER_RADIUS / np.sqrt(2),
-                    RIPV_CENTER[1] + PV_OUTER_RADIUS / np.sqrt(2),
-                ),
             ),
         },
     },
@@ -776,25 +450,21 @@ marker_configs = {
             path=["anchor", "LIPV_LAA"],
             position_type="index",
             position=-1,
-            uacs=(LAA_CENTER[0] - LAA_RADIUS / np.sqrt(2), LAA_CENTER[1] - LAA_RADIUS / np.sqrt(2)),
         ),
         "MV": MarkerConfig(
             path=["anchor", "LAA_MV"],
             position_type="index",
             position=0,
-            uacs=(LAA_CENTER[0] + LAA_RADIUS / np.sqrt(2), LAA_CENTER[1] + LAA_RADIUS / np.sqrt(2)),
         ),
         "lateral": MarkerConfig(
             path=["anchor", "LAA_lateral"],
             position_type="index",
             position=0,
-            uacs=(LAA_CENTER[0] + LAA_RADIUS / np.sqrt(2), LAA_CENTER[1] - LAA_RADIUS / np.sqrt(2)),
         ),
         "posterior": MarkerConfig(
             path=["anchor", "LAA_posterior"],
             position_type="index",
             position=0,
-            uacs=(LAA_CENTER[0] - LAA_RADIUS / np.sqrt(2), LAA_CENTER[1] + LAA_RADIUS / np.sqrt(2)),
         ),
     },
     "MV": {
@@ -802,39 +472,896 @@ marker_configs = {
             path=["anchor", "RSPV_MV"],
             position_type="index",
             position=-1,
-            uacs=(0, 0),
         ),
         "LSPV": MarkerConfig(
             path=["anchor", "LSPV_MV"],
             position_type="index",
             position=-1,
-            uacs=(1, 0),
         ),
         "LAA": MarkerConfig(
             path=["anchor", "LAA_MV"],
             position_type="index",
             position=-1,
-            uacs=(1, 1),
         ),
         "RIPV": MarkerConfig(
             path=["anchor", "RIPV_MV"],
             position_type="index",
             position=-1,
-            uacs=(0, 1),
         ),
     },
     "anchor": {
         "LSPV_MV": MarkerConfig(
             path=["anchor", "LSPV_MV"],
             position_type="relative",
-            position=0.9,
-            uacs=(3 / 5 + 0.9 * 2 / 5, 0.1 * 1 / 3),
+            position=0.5,
         ),
         "RIPV_MV": MarkerConfig(
             path=["anchor", "RIPV_MV"],
             position_type="relative",
-            position=0.9,
-            uacs=(0.1 * 2 / 5, 2 / 3 + 0.9 * 1 / 3),
+            position=0.5,
+        ),
+    },
+}
+
+
+# ==================================================================================================
+LIPV_CENTER = (2, 3 / 2)
+LSPV_CENTER = (2, 1)
+RIPV_CENTER = (1, 3 / 2)
+RSPV_CENTER = (1, 1)
+LAA_CENTER = (5 / 2, 2)
+PV_INNER_RADIUS = 1 / 5
+PV_OUTER_RADIUS = 1 / 10
+LAA_RADIUS = 1 / 2
+LAA_DISTANCE = 1 / 4
+LAA_DEPTH = 1 / 5
+ANCHOR_LENGTH = 1
+
+
+# ==================================================================================================
+uac_configs = {
+    "LIPV": {
+        "inner": {
+            "segment_1": UACConfig(
+                path=["LIPV", "inner"],
+                markers=[
+                    ["LIPV", "inner", "anterior_posterior"],
+                    ["LIPV", "inner", "septal_lateral"],
+                ],
+                uacs=[
+                    (LIPV_CENTER[0], LIPV_CENTER[1] - PV_INNER_RADIUS),
+                    (LIPV_CENTER[0] - PV_INNER_RADIUS, LIPV_CENTER[1]),
+                ],
+            ),
+            "segment_2": UACConfig(
+                path=["LIPV", "inner"],
+                markers=[
+                    ["LIPV", "inner", "septal_lateral"],
+                    ["LIPV", "inner", "anchor"],
+                ],
+                uacs=[
+                    (LIPV_CENTER[0] - PV_INNER_RADIUS, LIPV_CENTER[1]),
+                    (
+                        LIPV_CENTER[0] + PV_INNER_RADIUS / np.sqrt(2),
+                        LIPV_CENTER[1] + PV_INNER_RADIUS / np.sqrt(2),
+                    ),
+                ],
+            ),
+            "segment_3": UACConfig(
+                path=["LIPV", "inner"],
+                markers=[
+                    ["LIPV", "inner", "anchor"],
+                    ["LIPV", "inner", "anterior_posterior"],
+                ],
+                uacs=[
+                    (
+                        LIPV_CENTER[0] + PV_INNER_RADIUS / np.sqrt(2),
+                        LIPV_CENTER[1] + PV_INNER_RADIUS / np.sqrt(2),
+                    ),
+                    (LIPV_CENTER[0], LIPV_CENTER[1] - PV_INNER_RADIUS),
+                ],
+            ),
+        },
+        "outer": {
+            "segment_1": UACConfig(
+                path=["LIPV", "outer"],
+                markers=[
+                    ["LIPV", "outer", "anterior_posterior"],
+                    ["LIPV", "outer", "septal_lateral"],
+                ],
+                uacs=[
+                    (LIPV_CENTER[0], LIPV_CENTER[1] - PV_OUTER_RADIUS),
+                    (LIPV_CENTER[0] - PV_OUTER_RADIUS, LIPV_CENTER[1]),
+                ],
+            ),
+            "segment_2": UACConfig(
+                path=["LIPV", "outer"],
+                markers=[
+                    ["LIPV", "outer", "septal_lateral"],
+                    ["LIPV", "outer", "anchor"],
+                ],
+                uacs=[
+                    (LIPV_CENTER[0] - PV_OUTER_RADIUS, LIPV_CENTER[1]),
+                    (
+                        LIPV_CENTER[0] + PV_OUTER_RADIUS / np.sqrt(2),
+                        LIPV_CENTER[1] + PV_OUTER_RADIUS / np.sqrt(2),
+                    ),
+                ],
+            ),
+            "segment_3": UACConfig(
+                path=["LIPV", "outer"],
+                markers=[
+                    ["LIPV", "outer", "anchor"],
+                    ["LIPV", "outer", "anterior_posterior"],
+                ],
+                uacs=[
+                    (
+                        LIPV_CENTER[0] + PV_OUTER_RADIUS / np.sqrt(2),
+                        LIPV_CENTER[1] + PV_OUTER_RADIUS / np.sqrt(2),
+                    ),
+                    (LIPV_CENTER[0], LIPV_CENTER[1] - PV_OUTER_RADIUS),
+                ],
+            ),
+        },
+        "anterior_posterior": UACConfig(
+            path=["LIPV", "anterior_posterior"],
+            markers=[
+                ["LIPV", "inner", "anterior_posterior"],
+                ["LIPV", "outer", "anterior_posterior"],
+            ],
+            uacs=[
+                (LIPV_CENTER[0], LIPV_CENTER[1] - PV_INNER_RADIUS),
+                (LIPV_CENTER[0], LIPV_CENTER[1] - PV_OUTER_RADIUS),
+            ],
+        ),
+        "septal_lateral": UACConfig(
+            path=["LIPV", "septal_lateral"],
+            markers=[
+                ["LIPV", "inner", "septal_lateral"],
+                ["LIPV", "outer", "septal_lateral"],
+            ],
+            uacs=[
+                (LIPV_CENTER[0] - PV_INNER_RADIUS, LIPV_CENTER[1]),
+                (LIPV_CENTER[0] - PV_OUTER_RADIUS, LIPV_CENTER[1]),
+            ],
+        ),
+        "anchor": UACConfig(
+            path=["LIPV", "anchor"],
+            markers=[
+                ["LIPV", "inner", "anchor"],
+                ["LIPV", "outer", "anchor"],
+            ],
+            uacs=[
+                (
+                    LIPV_CENTER[0] + PV_INNER_RADIUS / np.sqrt(2),
+                    LIPV_CENTER[1] + PV_INNER_RADIUS / np.sqrt(2),
+                ),
+                (
+                    LIPV_CENTER[0] + PV_OUTER_RADIUS / np.sqrt(2),
+                    LIPV_CENTER[1] + PV_OUTER_RADIUS / np.sqrt(2),
+                ),
+            ],
+        ),
+    },
+    "LSPV": {
+        "inner": {
+            "segment_1": UACConfig(
+                path=["LSPV", "inner"],
+                markers=[
+                    ["LSPV", "inner", "anterior_posterior"],
+                    ["LSPV", "inner", "septal_lateral"],
+                ],
+                uacs=[
+                    (LSPV_CENTER[0], LSPV_CENTER[1] + PV_INNER_RADIUS),
+                    (LSPV_CENTER[0] - PV_INNER_RADIUS, LSPV_CENTER[1]),
+                ],
+            ),
+            "segment_2": UACConfig(
+                path=["LSPV", "inner"],
+                markers=[
+                    ["LSPV", "inner", "septal_lateral"],
+                    ["LSPV", "inner", "anchor"],
+                ],
+                uacs=[
+                    (LSPV_CENTER[0] - PV_INNER_RADIUS, LSPV_CENTER[1]),
+                    (
+                        LSPV_CENTER[0] + PV_INNER_RADIUS / np.sqrt(2),
+                        LSPV_CENTER[1] - PV_INNER_RADIUS / np.sqrt(2),
+                    ),
+                ],
+            ),
+            "segment_3": UACConfig(
+                path=["LSPV", "inner"],
+                markers=[
+                    ["LSPV", "inner", "anchor"],
+                    ["LSPV", "inner", "anterior_posterior"],
+                ],
+                uacs=[
+                    (
+                        LSPV_CENTER[0] + PV_INNER_RADIUS / np.sqrt(2),
+                        LSPV_CENTER[1] - PV_INNER_RADIUS / np.sqrt(2),
+                    ),
+                    (LSPV_CENTER[0], LSPV_CENTER[1] + PV_INNER_RADIUS),
+                ],
+            ),
+        },
+        "outer": {
+            "segment_1": UACConfig(
+                path=["LSPV", "outer"],
+                markers=[
+                    ["LSPV", "outer", "anterior_posterior"],
+                    ["LSPV", "outer", "septal_lateral"],
+                ],
+                uacs=[
+                    (LSPV_CENTER[0], LSPV_CENTER[1] + PV_OUTER_RADIUS),
+                    (LSPV_CENTER[0] - PV_OUTER_RADIUS, LSPV_CENTER[1]),
+                ],
+            ),
+            "segment_2": UACConfig(
+                path=["LSPV", "outer"],
+                markers=[
+                    ["LSPV", "outer", "septal_lateral"],
+                    ["LSPV", "outer", "anchor"],
+                ],
+                uacs=[
+                    (LSPV_CENTER[0] - PV_OUTER_RADIUS, LSPV_CENTER[1]),
+                    (
+                        LSPV_CENTER[0] + PV_OUTER_RADIUS / np.sqrt(2),
+                        LSPV_CENTER[1] - PV_OUTER_RADIUS / np.sqrt(2),
+                    ),
+                ],
+            ),
+            "segment_3": UACConfig(
+                path=["LSPV", "outer"],
+                markers=[
+                    ["LSPV", "outer", "anchor"],
+                    ["LSPV", "outer", "anterior_posterior"],
+                ],
+                uacs=[
+                    (
+                        LSPV_CENTER[0] + PV_OUTER_RADIUS / np.sqrt(2),
+                        LSPV_CENTER[1] - PV_OUTER_RADIUS / np.sqrt(2),
+                    ),
+                    (LSPV_CENTER[0], LSPV_CENTER[1] + PV_OUTER_RADIUS),
+                ],
+            ),
+        },
+        "anterior_posterior": UACConfig(
+            path=["LSPV", "anterior_posterior"],
+            markers=[
+                ["LSPV", "inner", "anterior_posterior"],
+                ["LSPV", "outer", "anterior_posterior"],
+            ],
+            uacs=[
+                (LSPV_CENTER[0], LSPV_CENTER[1] + PV_INNER_RADIUS),
+                (LSPV_CENTER[0], LSPV_CENTER[1] + PV_OUTER_RADIUS),
+            ],
+        ),
+        "septal_lateral": UACConfig(
+            path=["LSPV", "septal_lateral"],
+            markers=[
+                ["LSPV", "inner", "septal_lateral"],
+                ["LSPV", "outer", "septal_lateral"],
+            ],
+            uacs=[
+                (LSPV_CENTER[0] - PV_INNER_RADIUS, LSPV_CENTER[1]),
+                (LSPV_CENTER[0] - PV_OUTER_RADIUS, LSPV_CENTER[1]),
+            ],
+        ),
+        "anchor": UACConfig(
+            path=["LSPV", "anchor"],
+            markers=[
+                ["LSPV", "inner", "anchor"],
+                ["LSPV", "outer", "anchor"],
+            ],
+            uacs=[
+                (
+                    LSPV_CENTER[0] + PV_INNER_RADIUS / np.sqrt(2),
+                    LSPV_CENTER[1] - PV_INNER_RADIUS / np.sqrt(2),
+                ),
+                (
+                    LSPV_CENTER[0] + PV_OUTER_RADIUS / np.sqrt(2),
+                    LSPV_CENTER[1] - PV_OUTER_RADIUS / np.sqrt(2),
+                ),
+            ],
+        ),
+    },
+    "RSPV": {
+        "inner": {
+            "segment_1": UACConfig(
+                path=["RSPV", "inner"],
+                markers=[
+                    ["RSPV", "inner", "anterior_posterior"],
+                    ["RSPV", "inner", "septal_lateral"],
+                ],
+                uacs=[
+                    (RSPV_CENTER[0], RSPV_CENTER[1] + PV_INNER_RADIUS),
+                    (RSPV_CENTER[0] + PV_INNER_RADIUS, RSPV_CENTER[1]),
+                ],
+            ),
+            "segment_2": UACConfig(
+                path=["RSPV", "inner"],
+                markers=[
+                    ["RSPV", "inner", "septal_lateral"],
+                    ["RSPV", "inner", "anchor"],
+                ],
+                uacs=[
+                    (RSPV_CENTER[0] + PV_INNER_RADIUS, RSPV_CENTER[1]),
+                    (
+                        RSPV_CENTER[0] - PV_INNER_RADIUS / np.sqrt(2),
+                        RSPV_CENTER[1] - PV_INNER_RADIUS / np.sqrt(2),
+                    ),
+                ],
+            ),
+            "segment_3": UACConfig(
+                path=["RSPV", "inner"],
+                markers=[
+                    ["RSPV", "inner", "anchor"],
+                    ["RSPV", "inner", "anterior_posterior"],
+                ],
+                uacs=[
+                    (
+                        RSPV_CENTER[0] - PV_INNER_RADIUS / np.sqrt(2),
+                        RSPV_CENTER[1] - PV_INNER_RADIUS / np.sqrt(2),
+                    ),
+                    (RSPV_CENTER[0], RSPV_CENTER[1] + PV_INNER_RADIUS),
+                ],
+            ),
+        },
+        "outer": {
+            "segment_1": UACConfig(
+                path=["RSPV", "outer"],
+                markers=[
+                    ["RSPV", "outer", "anterior_posterior"],
+                    ["RSPV", "outer", "septal_lateral"],
+                ],
+                uacs=[
+                    (RSPV_CENTER[0], RSPV_CENTER[1] + PV_OUTER_RADIUS),
+                    (RSPV_CENTER[0] + PV_OUTER_RADIUS, RSPV_CENTER[1]),
+                ],
+            ),
+            "segment_2": UACConfig(
+                path=["RSPV", "outer"],
+                markers=[
+                    ["RSPV", "outer", "septal_lateral"],
+                    ["RSPV", "outer", "anchor"],
+                ],
+                uacs=[
+                    (RSPV_CENTER[0] + PV_OUTER_RADIUS, RSPV_CENTER[1]),
+                    (
+                        RSPV_CENTER[0] - PV_OUTER_RADIUS / np.sqrt(2),
+                        RSPV_CENTER[1] - PV_OUTER_RADIUS / np.sqrt(2),
+                    ),
+                ],
+            ),
+            "segment_3": UACConfig(
+                path=["RSPV", "outer"],
+                markers=[
+                    ["RSPV", "outer", "anchor"],
+                    ["RSPV", "outer", "anterior_posterior"],
+                ],
+                uacs=[
+                    (
+                        RSPV_CENTER[0] - PV_OUTER_RADIUS / np.sqrt(2),
+                        RSPV_CENTER[1] - PV_OUTER_RADIUS / np.sqrt(2),
+                    ),
+                    (RSPV_CENTER[0], RSPV_CENTER[1] + PV_OUTER_RADIUS),
+                ],
+            ),
+        },
+        "anterior_posterior": UACConfig(
+            path=["RSPV", "anterior_posterior"],
+            markers=[
+                ["RSPV", "inner", "anterior_posterior"],
+                ["RSPV", "outer", "anterior_posterior"],
+            ],
+            uacs=[
+                (RSPV_CENTER[0], RSPV_CENTER[1] + PV_INNER_RADIUS),
+                (RSPV_CENTER[0], RSPV_CENTER[1] + PV_OUTER_RADIUS),
+            ],
+        ),
+        "septal_lateral": UACConfig(
+            path=["RSPV", "septal_lateral"],
+            markers=[
+                ["RSPV", "inner", "septal_lateral"],
+                ["RSPV", "outer", "septal_lateral"],
+            ],
+            uacs=[
+                (RSPV_CENTER[0] + PV_INNER_RADIUS, RSPV_CENTER[1]),
+                (RSPV_CENTER[0] + PV_OUTER_RADIUS, RSPV_CENTER[1]),
+            ],
+        ),
+        "anchor": UACConfig(
+            path=["RSPV", "anchor"],
+            markers=[
+                ["RSPV", "inner", "anchor"],
+                ["RSPV", "outer", "anchor"],
+            ],
+            uacs=[
+                (
+                    RSPV_CENTER[0] - PV_INNER_RADIUS / np.sqrt(2),
+                    RSPV_CENTER[1] - PV_INNER_RADIUS / np.sqrt(2),
+                ),
+                (
+                    RSPV_CENTER[0] - PV_OUTER_RADIUS / np.sqrt(2),
+                    RSPV_CENTER[1] - PV_OUTER_RADIUS / np.sqrt(2),
+                ),
+            ],
+        ),
+    },
+    "RIPV": {
+        "inner": {
+            "segment_1": UACConfig(
+                path=["RIPV", "inner"],
+                markers=[
+                    ["RIPV", "inner", "anterior_posterior"],
+                    ["RIPV", "inner", "septal_lateral"],
+                ],
+                uacs=[
+                    (RIPV_CENTER[0], RIPV_CENTER[1] - PV_INNER_RADIUS),
+                    (RIPV_CENTER[0] + PV_INNER_RADIUS, RIPV_CENTER[1]),
+                ],
+            ),
+            "segment_2": UACConfig(
+                path=["RIPV", "inner"],
+                markers=[
+                    ["RIPV", "inner", "septal_lateral"],
+                    ["RIPV", "inner", "anchor"],
+                ],
+                uacs=[
+                    (RIPV_CENTER[0] + PV_INNER_RADIUS, RIPV_CENTER[1]),
+                    (
+                        RIPV_CENTER[0] + PV_INNER_RADIUS / np.sqrt(2),
+                        RIPV_CENTER[1] + PV_INNER_RADIUS / np.sqrt(2),
+                    ),
+                ],
+            ),
+            "segment_3": UACConfig(
+                path=["RIPV", "inner"],
+                markers=[
+                    ["RIPV", "inner", "anchor"],
+                    ["RIPV", "inner", "anterior_posterior"],
+                ],
+                uacs=[
+                    (
+                        RIPV_CENTER[0] + PV_INNER_RADIUS / np.sqrt(2),
+                        RIPV_CENTER[1] + PV_INNER_RADIUS / np.sqrt(2),
+                    ),
+                    (RIPV_CENTER[0], RIPV_CENTER[1] - PV_INNER_RADIUS),
+                ],
+            ),
+        },
+        "outer": {
+            "segment_1": UACConfig(
+                path=["RIPV", "outer"],
+                markers=[
+                    ["RIPV", "outer", "anterior_posterior"],
+                    ["RIPV", "outer", "septal_lateral"],
+                ],
+                uacs=[
+                    (RIPV_CENTER[0], RIPV_CENTER[1] - PV_OUTER_RADIUS),
+                    (RIPV_CENTER[0] + PV_OUTER_RADIUS, RIPV_CENTER[1]),
+                ],
+            ),
+            "segment_2": UACConfig(
+                path=["RIPV", "outer"],
+                markers=[
+                    ["RIPV", "outer", "septal_lateral"],
+                    ["RIPV", "outer", "anchor"],
+                ],
+                uacs=[
+                    (RIPV_CENTER[0] + PV_OUTER_RADIUS, RIPV_CENTER[1]),
+                    (
+                        RIPV_CENTER[0] + PV_OUTER_RADIUS / np.sqrt(2),
+                        RIPV_CENTER[1] + PV_OUTER_RADIUS / np.sqrt(2),
+                    ),
+                ],
+            ),
+            "segment_3": UACConfig(
+                path=["RIPV", "outer"],
+                markers=[
+                    ["RIPV", "outer", "anchor"],
+                    ["RIPV", "outer", "anterior_posterior"],
+                ],
+                uacs=[
+                    (
+                        RIPV_CENTER[0] + PV_OUTER_RADIUS / np.sqrt(2),
+                        RIPV_CENTER[1] + PV_OUTER_RADIUS / np.sqrt(2),
+                    ),
+                    (RIPV_CENTER[0], RIPV_CENTER[1] - PV_OUTER_RADIUS),
+                ],
+            ),
+        },
+        "anterior_posterior": UACConfig(
+            path=["RIPV", "anterior_posterior"],
+            markers=[
+                ["RIPV", "inner", "anterior_posterior"],
+                ["RIPV", "outer", "anterior_posterior"],
+            ],
+            uacs=[
+                (RIPV_CENTER[0], RIPV_CENTER[1] - PV_INNER_RADIUS),
+                (RIPV_CENTER[0], RIPV_CENTER[1] - PV_OUTER_RADIUS),
+            ],
+        ),
+        "septal_lateral": UACConfig(
+            path=["RIPV", "septal_lateral"],
+            markers=[
+                ["RIPV", "inner", "septal_lateral"],
+                ["RIPV", "outer", "septal_lateral"],
+            ],
+            uacs=[
+                (RIPV_CENTER[0] + PV_INNER_RADIUS, RIPV_CENTER[1]),
+                (RIPV_CENTER[0] + PV_OUTER_RADIUS, RIPV_CENTER[1]),
+            ],
+        ),
+        "anchor": UACConfig(
+            path=["RIPV", "anchor"],
+            markers=[
+                ["RIPV", "inner", "anchor"],
+                ["RIPV", "outer", "anchor"],
+            ],
+            uacs=[
+                (
+                    RIPV_CENTER[0] - PV_INNER_RADIUS / np.sqrt(2),
+                    RIPV_CENTER[1] + PV_INNER_RADIUS / np.sqrt(2),
+                ),
+                (
+                    RIPV_CENTER[0] - PV_OUTER_RADIUS / np.sqrt(2),
+                    RIPV_CENTER[1] + PV_OUTER_RADIUS / np.sqrt(2),
+                ),
+            ],
+        ),
+    },
+    "LAA": {
+        "LAA": UACConfig(
+            path=["LAA"],
+            markers=[
+                ["LAA", "LIPV"],
+                ["LAA", "lateral"],
+                ["LAA", "MV"],
+                ["LAA", "posterior"],
+            ],
+            uacs=[
+                (LAA_CENTER[0] - LAA_RADIUS, LAA_CENTER[1]),
+                (LAA_CENTER[0], LAA_CENTER[1] - LAA_RADIUS),
+                (LAA_CENTER[0] + LAA_RADIUS, LAA_CENTER[1]),
+                (LAA_CENTER[0], LAA_CENTER[1] + LAA_RADIUS),
+            ],
+        ),
+        "lateral": UACConfig(
+            path=["LAA"],
+            markers=[
+                ["LAA", "LIPV"],
+                ["LAA", "lateral"],
+                ["LAA", "MV"],
+            ],
+            uacs=[
+                (LIPV_CENTER[0] + LAA_DISTANCE, LIPV_CENTER[1] + PV_INNER_RADIUS / np.sqrt(2)),
+                (
+                    LIPV_CENTER[0] + 2 * LAA_DISTANCE,
+                    LIPV_CENTER[1] + PV_INNER_RADIUS / np.sqrt(2) - LAA_DEPTH,
+                ),
+                (LIPV_CENTER[0] + 3 * LAA_DISTANCE, LIPV_CENTER[1] + PV_INNER_RADIUS / np.sqrt(2)),
+            ],
+        ),
+        "posterior": UACConfig(
+            path=["LAA"],
+            markers=[
+                ["LAA", "LIPV"],
+                ["LAA", "posterior"],
+                ["LAA", "MV"],
+            ],
+            uacs=[
+                (LIPV_CENTER[0] + PV_INNER_RADIUS / np.sqrt(2), LIPV_CENTER[1] + LAA_DISTANCE),
+                (
+                    LIPV_CENTER[0] + PV_INNER_RADIUS / np.sqrt(2) + LAA_DEPTH,
+                    LIPV_CENTER[1] + 2 * LAA_DISTANCE,
+                ),
+                (LIPV_CENTER[0] + PV_INNER_RADIUS / np.sqrt(2), LIPV_CENTER[1] + 3 * LAA_DISTANCE),
+            ],
+        ),
+    },
+    "MV": {
+        "anterior": UACConfig(
+            path=["MV"],
+            markers=[
+                ["MV", "RSPV"],
+                ["MV", "LSPV"],
+            ],
+            uacs=[
+                (RSPV_CENTER[0] - PV_INNER_RADIUS / np.sqrt(2), 0),
+                (LSPV_CENTER[0] + PV_INNER_RADIUS / np.sqrt(2), 0),
+            ],
+        ),
+        "lateral": UACConfig(
+            path=["MV"],
+            markers=[
+                ["MV", "LSPV"],
+                ["MV", "LAA"],
+            ],
+            uacs=[
+                (LSPV_CENTER[0] + ANCHOR_LENGTH, LSPV_CENTER[1] - PV_INNER_RADIUS / np.sqrt(2)),
+                (LIPV_CENTER[0] + ANCHOR_LENGTH, LIPV_CENTER[1] + PV_INNER_RADIUS / np.sqrt(2)),
+            ],
+        ),
+        "posterior": UACConfig(
+            path=["MV"],
+            markers=[
+                ["MV", "LAA"],
+                ["MV", "RIPV"],
+            ],
+            uacs=[
+                (LIPV_CENTER[0] + PV_INNER_RADIUS / np.sqrt(2), LIPV_CENTER[1] + ANCHOR_LENGTH),
+                (RIPV_CENTER[0] - PV_INNER_RADIUS / np.sqrt(2), RIPV_CENTER[1] + ANCHOR_LENGTH),
+            ],
+        ),
+        "septal": UACConfig(
+            path=["MV"],
+            markers=[
+                ["MV", "RIPV"],
+                ["MV", "RSPV"],
+            ],
+            uacs=[
+                (0, RIPV_CENTER[1] + PV_INNER_RADIUS / np.sqrt(2)),
+                (0, RSPV_CENTER[1] - PV_INNER_RADIUS / np.sqrt(2)),
+            ],
+        ),
+    },
+    "roof": {
+        "LIPV_LSPV": UACConfig(
+            path=["roof", "LIPV_LSPV"],
+            markers=[
+                ["LIPV", "inner", "anterior_posterior"],
+                ["LSPV", "inner", "anterior_posterior"],
+            ],
+            uacs=[
+                (LIPV_CENTER[0], LIPV_CENTER[1] - PV_INNER_RADIUS),
+                (LSPV_CENTER[0], LSPV_CENTER[1] + PV_INNER_RADIUS),
+            ],
+        ),
+        "LSPV_RSPV": UACConfig(
+            path=["roof", "LSPV_RSPV"],
+            markers=[
+                ["LSPV", "inner", "septal_lateral"],
+                ["RSPV", "inner", "septal_lateral"],
+            ],
+            uacs=[
+                (LSPV_CENTER[0] - PV_INNER_RADIUS, LSPV_CENTER[1]),
+                (RSPV_CENTER[0] + PV_INNER_RADIUS, RSPV_CENTER[1]),
+            ],
+        ),
+        "RSPV_RIPV": UACConfig(
+            path=["roof", "RSPV_RIPV"],
+            markers=[
+                ["RSPV", "inner", "anterior_posterior"],
+                ["RIPV", "inner", "anterior_posterior"],
+            ],
+            uacs=[
+                (RSPV_CENTER[0], RSPV_CENTER[1] + PV_INNER_RADIUS),
+                (RIPV_CENTER[0], RIPV_CENTER[1] - PV_INNER_RADIUS),
+            ],
+        ),
+        "RIPV_LIPV": UACConfig(
+            path=["roof", "RIPV_LIPV"],
+            markers=[
+                ["RIPV", "inner", "septal_lateral"],
+                ["LIPV", "inner", "septal_lateral"],
+            ],
+            uacs=[
+                (RIPV_CENTER[0] + PV_INNER_RADIUS, RIPV_CENTER[1]),
+                (LIPV_CENTER[0] - PV_INNER_RADIUS, LIPV_CENTER[1]),
+            ],
+        ),
+    },
+    "anchor": {
+        "LIPV_LAA": {
+            "lateral": UACConfig(
+                path=["anchor", "LIPV_LAA"],
+                markers=[
+                    ["LIPV", "inner", "anchor"],
+                    ["LAA", "LIPV"],
+                ],
+                uacs=[
+                    (
+                        LIPV_CENTER[0] + PV_INNER_RADIUS / np.sqrt(2),
+                        LIPV_CENTER[1] + PV_INNER_RADIUS / np.sqrt(2),
+                    ),
+                    (LIPV_CENTER[0] + LAA_DISTANCE, LIPV_CENTER[1] + PV_INNER_RADIUS / np.sqrt(2)),
+                ],
+            ),
+            "posterior": UACConfig(
+                path=["anchor", "LIPV_LAA"],
+                markers=[
+                    ["LIPV", "inner", "anchor"],
+                    ["LAA", "LIPV"],
+                ],
+                uacs=[
+                    (
+                        LIPV_CENTER[0] + PV_INNER_RADIUS / np.sqrt(2),
+                        LIPV_CENTER[1] + PV_INNER_RADIUS / np.sqrt(2),
+                    ),
+                    (LIPV_CENTER[0] + PV_INNER_RADIUS / np.sqrt(2), LIPV_CENTER[1] + LAA_DISTANCE),
+                ],
+            ),
+        },
+        "LAA_MV": {
+            "lateral": UACConfig(
+                path=["anchor", "LAA_MV"],
+                markers=[
+                    ["LAA", "MV"],
+                    ["MV", "LAA"],
+                ],
+                uacs=[
+                    (
+                        LIPV_CENTER[0] + 3 * LAA_DISTANCE,
+                        LIPV_CENTER[1] + PV_INNER_RADIUS / np.sqrt(2),
+                    ),
+                    (
+                        LIPV_CENTER[0] + ANCHOR_LENGTH,
+                        LIPV_CENTER[1] + PV_INNER_RADIUS / np.sqrt(2),
+                    ),
+                ],
+            ),
+            "posterior": UACConfig(
+                path=["anchor", "LAA_MV"],
+                markers=[
+                    ["LAA", "MV"],
+                    ["MV", "LAA"],
+                ],
+                uacs=[
+                    (
+                        LIPV_CENTER[0] + PV_INNER_RADIUS / np.sqrt(2),
+                        LIPV_CENTER[1] + 3 * LAA_DISTANCE,
+                    ),
+                    (LIPV_CENTER[0] + PV_INNER_RADIUS / np.sqrt(2), LIPV_CENTER[1] + ANCHOR_LENGTH),
+                ],
+            ),
+        },
+        "LSPV_MV": {
+            "anterior": UACConfig(
+                path=["anchor", "LSPV_MV"],
+                markers=[
+                    ["LSPV", "inner", "anchor"],
+                    ["MV", "LSPV"],
+                ],
+                uacs=[
+                    (
+                        LSPV_CENTER[0] + PV_INNER_RADIUS / np.sqrt(2),
+                        LSPV_CENTER[1] - PV_INNER_RADIUS / np.sqrt(2),
+                    ),
+                    (LSPV_CENTER[0] + PV_INNER_RADIUS / np.sqrt(2), 0),
+                ],
+            ),
+            "lateral_roof": UACConfig(
+                path=["anchor", "LSPV_MV"],
+                markers=[
+                    ["LSPV", "inner", "anchor"],
+                    ["MV", "LSPV"],
+                ],
+                uacs=[
+                    (
+                        LSPV_CENTER[0] + PV_INNER_RADIUS / np.sqrt(2),
+                        LSPV_CENTER[1] - PV_INNER_RADIUS / np.sqrt(2),
+                    ),
+                    (LSPV_CENTER[0] + ANCHOR_LENGTH, LSPV_CENTER[1] - PV_INNER_RADIUS / np.sqrt(2)),
+                ],
+            ),
+            "lateral_mv": UACConfig(
+                path=["anchor", "LSPV_MV"],
+                markers=[
+                    ["LSPV", "inner", "anchor"],
+                    ["MV", "LSPV"],
+                ],
+                uacs=[
+                    (
+                        LSPV_CENTER[0] + PV_INNER_RADIUS / np.sqrt(2),
+                        LSPV_CENTER[1] - PV_INNER_RADIUS / np.sqrt(2),
+                    ),
+                    (LSPV_CENTER[0] + ANCHOR_LENGTH, 0),
+                ],
+            ),
+        },
+        "RSPV_MV": {
+            "anterior": UACConfig(
+                path=["anchor", "RSPV_MV"],
+                markers=[
+                    ["RSPV", "inner", "anchor"],
+                    ["MV", "RSPV"],
+                ],
+                uacs=[
+                    (
+                        RSPV_CENTER[0] - PV_INNER_RADIUS / np.sqrt(2),
+                        RSPV_CENTER[1] - PV_INNER_RADIUS / np.sqrt(2),
+                    ),
+                    (RSPV_CENTER[0] - PV_INNER_RADIUS / np.sqrt(2), 0),
+                ],
+            ),
+            "septal": UACConfig(
+                path=["anchor", "RSPV_MV"],
+                markers=[
+                    ["RSPV", "inner", "anchor"],
+                    ["MV", "RSPV"],
+                ],
+                uacs=[
+                    (
+                        RSPV_CENTER[0] - PV_INNER_RADIUS / np.sqrt(2),
+                        RSPV_CENTER[1] - PV_INNER_RADIUS / np.sqrt(2),
+                    ),
+                    (0, RSPV_CENTER[1] - PV_INNER_RADIUS / np.sqrt(2)),
+                ],
+            ),
+        },
+        "RIPV_MV": {
+            "septal": UACConfig(
+                path=["anchor", "RIPV_MV"],
+                markers=[
+                    ["RIPV", "inner", "anchor"],
+                    ["MV", "RIPV"],
+                ],
+                uacs=[
+                    (
+                        RIPV_CENTER[0] - PV_INNER_RADIUS / np.sqrt(2),
+                        RIPV_CENTER[1] + PV_INNER_RADIUS / np.sqrt(2),
+                    ),
+                    (0, RIPV_CENTER[1] + PV_INNER_RADIUS / np.sqrt(2)),
+                ],
+            ),
+            "posterior_roof": UACConfig(
+                path=["anchor", "RIPV_MV"],
+                markers=[
+                    ["RIPV", "inner", "anchor"],
+                    ["MV", "RIPV"],
+                ],
+                uacs=[
+                    (
+                        RIPV_CENTER[0] - PV_INNER_RADIUS / np.sqrt(2),
+                        RIPV_CENTER[1] + PV_INNER_RADIUS / np.sqrt(2),
+                    ),
+                    (RIPV_CENTER[0] - PV_INNER_RADIUS / np.sqrt(2), RIPV_CENTER[1] + ANCHOR_LENGTH),
+                ],
+            ),
+            "posterior_mv": UACConfig(
+                path=["anchor", "RIPV_MV"],
+                markers=[
+                    ["RIPV", "inner", "anchor"],
+                    ["MV", "RIPV"],
+                ],
+                uacs=[
+                    (
+                        RIPV_CENTER[0] - PV_INNER_RADIUS / np.sqrt(2),
+                        RIPV_CENTER[1] + PV_INNER_RADIUS / np.sqrt(2),
+                    ),
+                    (0, RIPV_CENTER[1] + ANCHOR_LENGTH),
+                ],
+            ),
+        },
+        "LAA_lateral": UACConfig(
+            path=["anchor", "LAA_lateral"],
+            markers=[
+                ["LAA", "lateral"],
+                ["anchor", "LSPV_MV"],
+            ],
+            uacs=[
+                (
+                    LIPV_CENTER[0] + 2 * LAA_DISTANCE,
+                    LIPV_CENTER[1] + PV_INNER_RADIUS / np.sqrt(2) - LAA_DEPTH,
+                ),
+                (LSPV_CENTER[0] + ANCHOR_LENGTH, LSPV_CENTER[1] - PV_INNER_RADIUS / np.sqrt(2)),
+            ],
+        ),
+        "LAA_posterior": UACConfig(
+            path=["anchor", "LAA_posterior"],
+            markers=[
+                ["LAA", "posterior"],
+                ["anchor", "RIPV_MV"],
+            ],
+            uacs=[
+                (
+                    LIPV_CENTER[0] + PV_INNER_RADIUS / np.sqrt(2) + LAA_DEPTH,
+                    LIPV_CENTER[1] + 2 * LAA_DISTANCE,
+                ),
+                (RIPV_CENTER[0] - PV_INNER_RADIUS / np.sqrt(2), RIPV_CENTER[1] + ANCHOR_LENGTH),
+            ],
         ),
     },
 }
@@ -844,122 +1371,85 @@ marker_configs = {
 submesh_configs = {
     "roof": SubmeshConfig(
         boundary_paths=[
-            ["LIPV", "inner"],
-            ["LSPV", "inner"],
-            ["RSPV", "inner"],
-            ["RIPV", "inner"],
+            ["LIPV", "inner", "segment_1"],
+            ["LSPV", "inner", "segment_1"],
+            ["RSPV", "inner", "segment_1"],
+            ["RIPV", "inner", "segment_1"],
             ["roof", "LIPV_LSPV"],
             ["roof", "LSPV_RSPV"],
             ["roof", "RSPV_RIPV"],
             ["roof", "RIPV_LIPV"],
         ],
-        portions=[(0, 1 / 4), (0, 1 / 4), (0, 1 / 4), (0, 1 / 4), (0, 1), (0, 1), (0, 1), (0, 1)],
         outside_path=["MV"],
     ),
     "anterior": SubmeshConfig(
         boundary_paths=[
             ["roof", "LSPV_RSPV"],
-            ["anchor", "LSPV_MV"],
-            ["anchor", "RSPV_MV"],
-            ["LSPV", "inner"],
-            ["RSPV", "inner"],
-            ["MV"],
-        ],
-        portions=[
-            (0, 1),
-            (0, 1),
-            (0, 1),
-            (PV_SEPTAL_LATERAL, PV_ANCHOR),
-            (PV_SEPTAL_LATERAL, PV_ANCHOR),
-            (0, 1 / 4),
+            ["anchor", "LSPV_MV", "anterior"],
+            ["anchor", "RSPV_MV", "anterior"],
+            ["LSPV", "inner", "segment_2"],
+            ["RSPV", "inner", "segment_2"],
+            ["MV", "anterior"],
         ],
         outside_path=["LIPV", "inner"],
     ),
     "septal": SubmeshConfig(
         boundary_paths=[
             ["roof", "RSPV_RIPV"],
-            ["anchor", "RIPV_MV"],
-            ["anchor", "RSPV_MV"],
-            ["RIPV", "inner"],
-            ["RSPV", "inner"],
-            ["MV"],
+            ["anchor", "RIPV_MV", "septal"],
+            ["anchor", "RSPV_MV", "septal"],
+            ["RIPV", "inner", "segment_3"],
+            ["RSPV", "inner", "segment_3"],
+            ["MV", "septal"],
         ],
-        portions=[(0, 1), (0, 1), (0, 1), (PV_ANCHOR, 1), (PV_ANCHOR, 1), (3 / 4, 1)],
         outside_path=["LIPV", "inner"],
     ),
     "posterior_roof": SubmeshConfig(
         boundary_paths=[
             ["roof", "RIPV_LIPV"],
-            ["anchor", "RIPV_MV"],
-            ["anchor", "LIPV_LAA"],
+            ["anchor", "RIPV_MV", "posterior_roof"],
+            ["anchor", "LIPV_LAA", "posterior"],
             ["anchor", "LAA_posterior"],
-            ["RIPV", "inner"],
-            ["LIPV", "inner"],
-            ["LAA"],
-        ],
-        portions=[
-            (0, 1),
-            (0, 0.9),
-            (0, 1),
-            (0, 1),
-            (PV_SEPTAL_LATERAL, PV_ANCHOR),
-            (PV_SEPTAL_LATERAL, PV_ANCHOR),
-            (3 / 4, 1),
+            ["RIPV", "inner", "segment_2"],
+            ["LIPV", "inner", "segment_2"],
+            ["LAA", "posterior"],
         ],
         outside_path=["LSPV", "inner"],
     ),
     "posterior_mv": SubmeshConfig(
         boundary_paths=[
-            ["anchor", "RIPV_MV"],
-            ["anchor", "LAA_MV"],
+            ["anchor", "RIPV_MV", "posterior_mv"],
+            ["anchor", "LAA_MV", "posterior"],
             ["anchor", "LAA_posterior"],
-            ["LAA"],
-            ["MV"],
+            ["LAA", "posterior"],
+            ["MV", "posterior"],
         ],
-        portions=[(0.9, 1), (0, 1), (0, 1), (1 / 2, 3 / 4), (1 / 2, 3 / 4)],
         outside_path=["LSPV", "inner"],
     ),
     "lateral_roof": SubmeshConfig(
         boundary_paths=[
             ["roof", "LIPV_LSPV"],
-            ["anchor", "LIPV_LAA"],
-            ["anchor", "LSPV_MV"],
+            ["anchor", "LIPV_LAA", "lateral"],
+            ["anchor", "LSPV_MV", "lateral_roof"],
             ["anchor", "LAA_lateral"],
-            ["LIPV", "inner"],
-            ["LSPV", "inner"],
+            ["LIPV", "inner", "segment_3"],
+            ["LSPV", "inner", "segment_3"],
             ["LAA"],
-        ],
-        portions=[
-            (0, 1),
-            (0, 1),
-            (0, 0.9),
-            (0, 1),
-            (PV_ANCHOR, 1),
-            (PV_ANCHOR, 1),
-            (0, 1 / 4),
         ],
         outside_path=["RIPV", "inner"],
     ),
-    # "lateral_mv": SubmeshConfig(
-    #     boundary_paths=[
-    #         ["anchor", "LAA_MV"],
-    #         ["anchor", "LSPV_MV"],
-    #         ["anchor", "LAA_lateral"],
-    #         ["LAA"],
-    #         ["MV"],
-    #     ],
-    #     portions=[
-    #         (0, 1),
-    #         (0.9, 1),
-    #         (0, 1),
-    #         (1 / 4, 1 / 2),
-    #         (1 / 4, 1 / 2),
-    #     ],
-    #     outside_path=["RIPV", "inner"],
-    # ),
+    "lateral_mv": SubmeshConfig(
+        boundary_paths=[
+            ["anchor", "LAA_MV", "lateral"],
+            ["anchor", "LSPV_MV", "lateral_mv"],
+            ["anchor", "LAA_lateral"],
+            ["LAA", "lateral"],
+            ["MV", "lateral"],
+        ],
+        outside_path=["RIPV", "inner"],
+    ),
     "laa": SubmeshConfig(
-        boundary_paths=[["LAA"]],
-        portions=[(0, 1)],
+        boundary_paths=[["LAA", "LAA"]],
         outside_path=["RIPV", "inner"],
     ),
 }
