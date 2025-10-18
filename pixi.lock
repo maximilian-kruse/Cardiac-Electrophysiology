@@ -273,6 +273,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libxslt-1.1.43-h7a3aeb2_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libzip-1.11.2-h6991a6a_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libzlib-1.3.1-hb9d3cd8_2.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/llvmlite-0.45.1-py313hdd307be_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/loguru-0.7.3-pyh707e725_0.conda
       - conda: https://repo.prefix.dev/kruse-forge/noarch/ls-prior-0.4.14-pyh4616a5c_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/lz4-c-1.10.0-h5888daf_1.conda
@@ -306,6 +307,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/nlohmann_json-3.12.0-h54a6638_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/notebook-7.4.7-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/notebook-shim-0.2.4-pyhd8ed1ab_1.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/numba-0.62.1-py313hd8e3f9f_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/numpy-2.3.3-py313hf6604e3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/ocl-icd-2.3.3-hb9d3cd8_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/opencl-headers-2025.06.13-h5888daf_0.conda
@@ -474,9 +476,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/3e/0b/a33add48e904dd88a52d4653cc8290da0f2d3dc132c60c5dbda6783f4e4a/jaxlib-0.7.2-cp313-cp313-manylinux_2_27_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/c9/b9/281e10e2d967ea5e481683eaec99f55ac5a61085ee60551c36942ef32bef/jaxtyping-0.3.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/9c/5c/bc7aec8d3a93ce700dd6644c771a22fe6aff00379f7c97073f65a29270e8/libigl-2.6.1-cp312-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/00/c4/c2e5ade9354908630aec2eeeeacbfe341a96d07e080dc0cd25cbbb9c8c82/llvmlite-0.45.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/14/f3/091ba84e5395d7fe5b30c081a44dec881cd84b408db1763ee50768b2ab63/ml_dtypes-0.5.3-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/78/7e/bf2e3634993d57f95305c7cee4c9c6cb3c9c78404ee7b49569a0dfecfe33/numba-0.62.1-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/23/cd/066e86230ae37ed0be70aae89aabf03ca8d9f39c8aea0dec8029455b5540/opt_einsum-3.4.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/8d/fd/42a1720542199ae6ff0f9c37bbd55dd3033ddd7bbe00d68cde09d6824887/sparse-0.17.0-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/8d/96/04e7b441807b26b794da5b11e59ed7f83b2cf8af202bd7eba8ad2fa6046e/wadler_lindig-0.1.7-py3-none-any.whl
@@ -976,7 +976,7 @@ packages:
 - pypi: ./
   name: cardiac-electrophysiology
   version: 0.1.0
-  sha256: 56a933ae8350ff380b324ad40c9c8b205c0858fa305c11457697bd25d8444887
+  sha256: d41567784fb2c89fef9404869a34130e73b26b98e58234be0e200e7f68b8d918
   requires_python: '>=3.13'
   editable: true
 - conda: https://conda.anaconda.org/conda-forge/noarch/certifi-2025.8.3-pyhd8ed1ab_0.conda
@@ -4219,11 +4219,23 @@ packages:
   purls: []
   size: 60963
   timestamp: 1727963148474
-- pypi: https://files.pythonhosted.org/packages/00/c4/c2e5ade9354908630aec2eeeeacbfe341a96d07e080dc0cd25cbbb9c8c82/llvmlite-0.45.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
-  name: llvmlite
-  version: 0.45.0
-  sha256: 2c12fde908967e464b265554143c030ba4dcc2b981a815582d7708a30295018e
-  requires_python: '>=3.10'
+- conda: https://conda.anaconda.org/conda-forge/linux-64/llvmlite-0.45.1-py313hdd307be_0.conda
+  sha256: 5b8e2063e93bea160fd50274d05ce4436f01c383a392f293b769dfb973c4df21
+  md5: 5afb15643ef1fcea20798bb6086bb3f9
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc >=14
+  - libstdcxx >=14
+  - libzlib >=1.3.1,<2.0a0
+  - python >=3.13,<3.14.0a0
+  - python_abi 3.13.* *_cp313
+  - zstd >=1.5.7,<1.6.0a0
+  license: BSD-2-Clause
+  license_family: BSD
+  purls:
+  - pkg:pypi/llvmlite?source=hash-mapping
+  size: 34153671
+  timestamp: 1759394632193
 - conda: https://conda.anaconda.org/conda-forge/noarch/loguru-0.7.3-pyh707e725_0.conda
   sha256: e4a07f357a4cf195a2345dabd98deab80f4d53574abe712a9cc7f22d3f2cc2c3
   md5: 49647ac1de4d1e4b49124aedf3934e02
@@ -4713,14 +4725,32 @@ packages:
   - pkg:pypi/notebook-shim?source=hash-mapping
   size: 16817
   timestamp: 1733408419340
-- pypi: https://files.pythonhosted.org/packages/78/7e/bf2e3634993d57f95305c7cee4c9c6cb3c9c78404ee7b49569a0dfecfe33/numba-0.62.1-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
-  name: numba
-  version: 0.62.1
-  sha256: 8c9460b9e936c5bd2f0570e20a0a5909ee6e8b694fd958b210e3bde3a6dba2d7
-  requires_dist:
-  - llvmlite>=0.45.0.dev0,<0.46
-  - numpy>=1.22,<2.4
-  requires_python: '>=3.10'
+- conda: https://conda.anaconda.org/conda-forge/linux-64/numba-0.62.1-py313hd8e3f9f_0.conda
+  sha256: 0b0ccf81ecd0cfb934818c3fb88404821904fe84e67815ab9958d37b0dca61e4
+  md5: 82ffdc573a667626351f4110605da846
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - _openmp_mutex >=4.5
+  - libgcc >=14
+  - libstdcxx >=14
+  - llvmlite >=0.45.0,<0.46.0a0
+  - numpy >=1.23,<3
+  - numpy >=1.24,<2.4
+  - python >=3.13,<3.14.0a0
+  - python_abi 3.13.* *_cp313
+  constrains:
+  - cudatoolkit >=11.2
+  - cuda-version >=11.2
+  - tbb >=2021.6.0
+  - cuda-python >=11.6
+  - scipy >=1.0
+  - libopenblas !=0.3.6
+  license: BSD-2-Clause
+  license_family: BSD
+  purls:
+  - pkg:pypi/numba?source=hash-mapping
+  size: 5743830
+  timestamp: 1759165232580
 - conda: https://conda.anaconda.org/conda-forge/linux-64/numpy-2.3.3-py313hf6604e3_0.conda
   sha256: 88d45c6dbedabbc8ebb19555bb3d04b5e2846ae8a7dfc2c0204b54f5f6efaef7
   md5: 3122d20dc438287e125fb5acff1df170

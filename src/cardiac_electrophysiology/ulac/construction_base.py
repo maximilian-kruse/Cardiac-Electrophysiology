@@ -4,6 +4,8 @@ import igraph as ig
 import numpy as np
 import pyvista as pv
 import trimesh as tm
+from numba import njit
+from numba.typed import List
 
 
 # ==================================================================================================
@@ -65,7 +67,7 @@ def get_feature_boundary(
         feature_boundary_inds = np.setdiff1d(feature_boundary_inds, geometry_boundary_inds)
 
     ordered_boundary_inds = _construct_ordered_path_from_indices(mesh, feature_boundary_inds)
-    return ordered_boundary_inds[:-1]
+    return ordered_boundary_inds
 
 
 # --------------------------------------------------------------------------------------------------
@@ -113,23 +115,74 @@ def construct_shortest_path_between_subsets(
 
 
 # --------------------------------------------------------------------------------------------------
-def split_from_enclosing_boundary(mesh: pv.PolyData, boundary_inds: np.ndarray):
-    simplices = np.array(mesh.faces.reshape(-1, 4)[:, 1:])
-    not_boundary_inds = np.setdiff1d(np.arange(mesh.number_of_points), boundary_inds)
-    tm_mesh = tm.Trimesh(vertices=mesh.points, faces=mesh.faces.reshape(-1, 4)[:, 1:])
-    mesh_edges = tm_mesh.edges_unique
-    connected_components = tm.graph.connected_components(mesh_edges, nodes=not_boundary_inds)
-    submeshes_with_boundary = []
+def extract_region_from_boundary(
+    mesh: pv.PolyData, boundary_inds: np.ndarray, outside_inds: np.ndarray
+) -> np.ndarray:
+    mesh_points_without_boundary = np.setdiff1d(np.arange(mesh.number_of_points), boundary_inds)
+    mesh_without_boundary = mesh.extract_points(mesh_points_without_boundary, adjacent_cells=False)
+    submeshes = mesh_without_boundary.split_bodies()
+    coinciding_outside_inds = np.where(
+        submeshes[0].point_data["vtkOriginalPointIds"] == outside_inds[0]
+    )[0]
+    inside_mesh = submeshes[0] if coinciding_outside_inds.size == 0 else submeshes[1]
+    seed_ind = inside_mesh.point_data["vtkOriginalPointIds"][0]
 
-    for component_inds in connected_components:
-        point_inds_with_boundary = np.sort(np.hstack([component_inds, boundary_inds]).astype(int))
-        contained_cell_inds = np.where(np.isin(simplices, point_inds_with_boundary).all(axis=1))[0]
-        submesh_with_boundary = mesh.extract_cells(contained_cell_inds)
-        original_point_inds = submesh_with_boundary.point_data["vtkOriginalPointIds"]
-        connectivity = np.array(submesh_with_boundary.cells.reshape(-1, 4)[:, 1:])
-        submeshes_with_boundary.append(Submesh(original_point_inds, connectivity))
+    tm_mesh = tm.Trimesh(vertices=mesh.points, faces=mesh.faces.reshape(-1, 4)[:, 1:4])
+    boundary_ind_mask = np.zeros(mesh.number_of_points, dtype=np.bool_)
+    boundary_ind_mask[boundary_inds] = True
 
-    return submeshes_with_boundary
+    graph = ig.Graph(tm_mesh.edges_unique, directed=False)
+    adjacency = graph.get_adjacency_sparse()
+    adjacency = adjacency.tocoo()
+    _, ind_starts = np.unique(adjacency.row, return_index=True)
+    ind_neighbors = adjacency.col
+    submesh_inds = _extract_region_from_boundary(
+        ind_starts, ind_neighbors, seed_ind, boundary_ind_mask, mesh.number_of_points
+    )
+    pv_submesh = mesh.extract_points(submesh_inds, adjacent_cells=False)
+    connectivity = np.array(pv_submesh.cells.reshape(-1, 4)[:, 1:])
+    submesh = Submesh(inds=submesh_inds, connectivity=connectivity)
+
+    return submesh
+
+
+# --------------------------------------------------------------------------------------------------
+@njit
+def _extract_region_from_boundary(
+    index_starts: np.ndarray,
+    index_neighbors: np.ndarray,
+    seed_ind: int,
+    boundary_ind_mask: np.ndarray,
+    number_of_points: int,
+) -> np.ndarray:
+    visited_inds = np.zeros(number_of_points, dtype=np.bool_)
+    active_list = List([seed_ind])
+    neighbor_inds = List([seed_ind])
+    neighbor_inds.clear()
+
+    while active_list:
+        current_ind = active_list.pop()
+        visited_inds[current_ind] = True
+        # Get all admissible neighbor edges
+        start_ind = index_starts[current_ind]
+        end_ind = (
+            index_starts[current_ind + 1]
+            if current_ind + 1 < index_starts.size
+            else index_neighbors.size
+        )
+        is_boundary = boundary_ind_mask[current_ind]
+        for i in range(start_ind, end_ind):
+            if is_boundary and (not boundary_ind_mask[index_neighbors[i]]):
+                continue
+            neighbor_inds.append(index_neighbors[i])
+        # Add unvisited neighbors to active list
+        for i in range(len(neighbor_inds)):
+            neighbor_ind = neighbor_inds[i]
+            if not visited_inds[neighbor_ind]:
+                active_list.append(neighbor_ind)
+        neighbor_inds.clear()
+
+    return np.where(visited_inds)[0]
 
 
 # ==================================================================================================
