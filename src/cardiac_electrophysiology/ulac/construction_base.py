@@ -10,12 +10,6 @@ from numba.typed import List
 
 # ==================================================================================================
 @dataclass
-class Marker:
-    ind: int = None
-    uacs: tuple[float, float] = None
-
-
-@dataclass
 class ParameterizedPath:
     inds: np.ndarray = None
     relative_lengths: np.ndarray = None
@@ -31,6 +25,7 @@ class UACPath(ParameterizedPath):
 class Submesh:
     inds: np.ndarray = None
     connectivity: np.ndarray = None
+    cell_inds: np.ndarray = None
 
 
 @dataclass
@@ -115,7 +110,7 @@ def construct_shortest_path_between_subsets(
 
 
 # --------------------------------------------------------------------------------------------------
-def extract_region_from_boundary(
+def __extract_region_from_boundary(
     mesh: pv.PolyData, boundary_inds: np.ndarray, outside_inds: np.ndarray
 ) -> np.ndarray:
     mesh_points_without_boundary = np.setdiff1d(np.arange(mesh.number_of_points), boundary_inds)
@@ -147,8 +142,86 @@ def extract_region_from_boundary(
 
 
 # --------------------------------------------------------------------------------------------------
+def extract_region_from_boundary(
+    mesh: pv.PolyData, boundary_inds: np.ndarray, outside_inds: np.ndarray
+) -> np.ndarray:
+    mesh_points_without_boundary = np.setdiff1d(np.arange(mesh.number_of_points), boundary_inds)
+    mesh_without_boundary = mesh.extract_points(mesh_points_without_boundary, adjacent_cells=False)
+    submeshes = mesh_without_boundary.split_bodies()
+    coinciding_outside_inds = np.where(
+        submeshes[0].point_data["vtkOriginalPointIds"] == outside_inds[0]
+    )[0]
+    inside_mesh = submeshes[0] if coinciding_outside_inds.size == 0 else submeshes[1]
+    seed_point = inside_mesh.point_data["vtkOriginalPointIds"][0]
+    seed_ind = np.where(np.isin(mesh.faces.reshape(-1, 4)[:, 1:4], seed_point).any(axis=1))[0][0]
+
+    tm_mesh = tm.Trimesh(vertices=mesh.points, faces=mesh.faces.reshape(-1, 4)[:, 1:4])
+    face_adjacency = tm_mesh.face_adjacency
+    face_adjacency_flipped = np.flip(face_adjacency, axis=1)
+    face_adjacency_complete = np.vstack([face_adjacency, face_adjacency_flipped])
+    sorting_mask = np.argsort(face_adjacency_complete[:, 0])
+    face_adjacency_sorted = face_adjacency_complete[sorting_mask]
+    _, new_face_start_inds = np.unique(face_adjacency_sorted[:, 0], return_index=True)
+    neighbor_faces = face_adjacency_sorted[:, 1]
+    boundary_edges = np.hstack([boundary_inds[:-1, None], boundary_inds[1:, None]])
+    boundary_edges = np.append(boundary_edges, [[boundary_inds[-1], boundary_inds[0]]], axis=0)
+
+    submesh_cell_inds = _extract_region_from_boundary(
+        tm_mesh.faces,
+        seed_ind,
+        boundary_edges,
+        new_face_start_inds,
+        neighbor_faces,
+    )
+    pv_submesh = mesh.extract_cells(submesh_cell_inds)
+    vertex_inds = pv_submesh.point_data["vtkOriginalPointIds"]
+    connectivity = np.array(pv_submesh.cells.reshape(-1, 4)[:, 1:])
+    submesh = Submesh(inds=vertex_inds, connectivity=connectivity, cell_inds=submesh_cell_inds)
+
+    return submesh
+
+
+# --------------------------------------------------------------------------------------------------
 @njit
 def _extract_region_from_boundary(
+    faces: np.ndarray,
+    seed_ind: int,
+    boundary_edges: np.ndarray,
+    new_face_start_inds: np.ndarray,
+    neighbor_faces: np.ndarray,
+) -> np.ndarray:
+    visited_cells = np.zeros(new_face_start_inds.shape[0], dtype=np.bool_)
+    active_list = List([seed_ind])
+
+    while active_list:
+        current_cell_ind = active_list.pop()
+        current_cell = faces[current_cell_ind]
+        visited_cells[current_cell_ind] = True
+        start_ind = new_face_start_inds[current_cell_ind]
+        end_ind = (
+            new_face_start_inds[current_cell_ind + 1]
+            if current_cell_ind + 1 < new_face_start_inds.size
+            else neighbor_faces.size
+        )
+        for i in range(start_ind, end_ind):
+            neighbor_cell_ind = neighbor_faces[i]
+            neighbor_cell = faces[neighbor_cell_ind]
+            shared_edge = np.intersect1d(current_cell, neighbor_cell)
+            for boundary_edge in boundary_edges:
+                if  shared_edge[0] in boundary_edge and shared_edge[1] in boundary_edge:
+                    is_boundary = True
+                    break
+            else:
+                is_boundary = False
+            if not is_boundary and not visited_cells[neighbor_cell_ind]:
+                active_list.append(neighbor_cell_ind)
+
+    return np.where(visited_cells)[0]
+
+
+# --------------------------------------------------------------------------------------------------
+@njit
+def __extract_region_from_boundary(
     index_starts: np.ndarray,
     index_neighbors: np.ndarray,
     seed_ind: int,
@@ -221,94 +294,73 @@ def _parameterize_by_relative_length(
     mesh: pv.PolyData, path: np.ndarray, relative_marker_inds: list[int], marker_values: list[float]
 ) -> ParameterizedPath:
     coordinates = np.array(mesh.points[path])
+    if 1.0 not in marker_values:
+        path = np.append(path, path[0])
+        relative_marker_inds = [*relative_marker_inds, path.size - 1]
+        marker_values = [*marker_values, 1.0]
+        coordinates = np.append(coordinates, [coordinates[0]], axis=0)
     edge_lengths = np.linalg.norm(coordinates[1:] - coordinates[:-1], axis=1)
     cumulative_lengths = np.cumsum(edge_lengths)
-    relative_path_length = np.zeros(coordinates.shape[0])
-    relative_path_length[1:] = cumulative_lengths / cumulative_lengths[-1]
-    segmented_lengths = np.zeros(coordinates.shape[0])
+    cumulative_lengths = np.insert(cumulative_lengths, 0, 0.0)
+    segmented_points = np.zeros(path.size)
 
-    splitting_inds = relative_marker_inds[1:]
-    if 1.0 in marker_values:
-        splitting_inds = splitting_inds[:-1]
-        segment_boundaries = marker_values
-    else:
-        closing_edge_length = np.linalg.norm(coordinates[0] - coordinates[-1])
-        end_marker = relative_path_length[-1] / (
-            relative_path_length[-1] + closing_edge_length / cumulative_lengths[-1]
+    num_segments = len(relative_marker_inds) - 1
+    for i in range(num_segments):
+        start_ind = relative_marker_inds[i]
+        end_ind = relative_marker_inds[i + 1]
+        start_value = marker_values[i]
+        end_value = marker_values[i + 1]
+        shifted_cumulative_lengths = (
+            cumulative_lengths[start_ind : end_ind + 1] - cumulative_lengths[start_ind]
         )
-        segment_boundaries = [*marker_values, end_marker]
-    segments = np.split(np.arange(path.size), splitting_inds)
-
-    for i, segment_inds in enumerate(segments):
-        include_endpoint = i == len(segments) - 1
-        start_value = segment_boundaries[i]
-        end_value = segment_boundaries[i + 1]
-        num_points = segment_inds.size
-        segment_parameterization = np.linspace(
-            start_value, end_value, num_points, endpoint=include_endpoint
+        relative_lengths = (
+            start_value
+            + (end_value - start_value)
+            * shifted_cumulative_lengths
+            / shifted_cumulative_lengths[-1]
         )
-        segmented_lengths[segment_inds] = segment_parameterization
+        segmented_points[start_ind : end_ind + 1] = relative_lengths
 
-    parameterized_path = ParameterizedPath(path, segmented_lengths)
+    parameterized_path = ParameterizedPath(path, segmented_points)
     return parameterized_path
 
 
 # ==================================================================================================
-def compute_uacs_polygon(
+def compute_uacs_polyline(
     path: ParameterizedPath,
     segment_points: list[float],
     segment_uacs: list[tuple[float, float]],
 ) -> UACPath:
-    splitting_points = segment_points[1:]
-    if 1.0 in segment_points:
-        splitting_points = splitting_points[:-1]
-    segment_indices = np.searchsorted(path.relative_lengths, splitting_points)
-    segments = np.split(path.relative_lengths, segment_indices)
-    uac_segment_boundaries = np.array(segment_uacs)
+    alpha_values, beta_values, ind_values, relative_lengths = [], [], [], []
+    num_segments = len(segment_points) - 1
 
-    if 1.0 not in segment_points:
-        end_uacs = uac_segment_boundaries[-1] + path.relative_lengths[-1] * (
-            uac_segment_boundaries[0] - uac_segment_boundaries[-1]
-        )
-        uac_segment_boundaries = np.vstack((uac_segment_boundaries, end_uacs))
+    for i in range(num_segments):
+        start_ind = np.where(np.isclose(path.relative_lengths, segment_points[i]))[0][0]
+        end_ind = np.where(np.isclose(path.relative_lengths, segment_points[i + 1]))[0][0]
+        segment_inds = path.inds[start_ind : end_ind + 1]
+        start_uacs = segment_uacs[i]
+        end_uacs = segment_uacs[i + 1]
+        path_segment = path.relative_lengths[start_ind : end_ind + 1]
+        length_range = np.max(path_segment) - np.min(path_segment)
+        scaled_length = (path_segment - np.min(path_segment)) / length_range
+        alpha = start_uacs[0] + (end_uacs[0] - start_uacs[0]) * scaled_length
+        beta = start_uacs[1] + (end_uacs[1] - start_uacs[1]) * scaled_length
 
-    alpha, beta = [], []
-    for i, segment in enumerate(segments):
-        next_segment = segments[i + 1] if i < len(segments) - 1 else None
-        start_point = uac_segment_boundaries[i]
-        if next_segment is not None:
-            end_point = uac_segment_boundaries[i] + segment[-1] / next_segment[0] * (
-                uac_segment_boundaries[i + 1] - uac_segment_boundaries[i]
-            )
-        else:
-            end_point = uac_segment_boundaries[i + 1]
-        segment_alpha, segment_beta = _compute_uacs_edge(segment, start_point, end_point)
-        alpha.append(segment_alpha)
-        beta.append(segment_beta)
-    alpha = np.concatenate(alpha)
-    beta = np.concatenate(beta)
+        if i < num_segments - 1:
+            alpha = alpha[:-1]
+            beta = beta[:-1]
+            segment_inds = segment_inds[:-1]
+            path_segment = path_segment[:-1]
+        alpha_values.append(alpha)
+        beta_values.append(beta)
+        ind_values.append(segment_inds)
+        relative_lengths.append(path_segment)
 
+    ind_values = np.concatenate(ind_values)
+    relative_lengths = np.concatenate(relative_lengths)
+    alpha_values = np.concatenate(alpha_values)
+    beta_values = np.concatenate(beta_values)
     uac_path = UACPath(
-        inds=path.inds, relative_lengths=path.relative_lengths, alpha=alpha, beta=beta
+        inds=ind_values, relative_lengths=relative_lengths, alpha=alpha_values, beta=beta_values
     )
     return uac_path
-
-
-# --------------------------------------------------------------------------------------------------
-def compute_uacs_line(path: ParameterizedPath, start_point: tuple, end_point: tuple) -> UACPath:
-    alpha, beta = _compute_uacs_edge(path.relative_lengths, start_point, end_point)
-    uac_path = UACPath(
-        inds=path.inds, relative_lengths=path.relative_lengths, alpha=alpha, beta=beta
-    )
-    return uac_path
-
-
-# --------------------------------------------------------------------------------------------------
-def _compute_uacs_edge(
-    relative_length: np.ndarray, start_point: tuple, end_point: tuple
-) -> tuple[np.ndarray, np.ndarray]:
-    length_range = np.max(relative_length) - np.min(relative_length)
-    scaled_length = (relative_length - np.min(relative_length)) / length_range
-    alpha = start_point[0] + (end_point[0] - start_point[0]) * scaled_length
-    beta = start_point[1] + (end_point[1] - start_point[1]) * scaled_length
-    return alpha, beta

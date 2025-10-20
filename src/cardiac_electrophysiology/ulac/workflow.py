@@ -111,11 +111,11 @@ workflow = [
         ],
     ),
     # ----------------------------------------------------------------------------------------------
-    # Parameterize all available paths except LAA boundary
+    # Parameterize all available paths
     Step(
-        id="path_parameterization_existing_except_LAA",
+        id="path_parameterization_existing",
         type="path_parameterization",
-        description="""Parameterize available paths except LAA boundary""",
+        description="""Parameterize available paths""",
         apply_to=[
             ("LIPV", "inner"),
             ("LIPV", "outer"),
@@ -144,9 +144,9 @@ workflow = [
             ("roof", "RIPV_LIPV"),
             ("anchor", "LIPV_LAA"),
             ("anchor", "LAA_MV"),
-            ("anchor", "LSPV_MV"),
             ("anchor", "RSPV_MV"),
-            ("anchor", "RIPV_MV"),
+            ("anchor", "LSPV_MV_anterior"),
+            ("anchor", "RIPV_MV_septal"),
         ],
     ),
     # ----------------------------------------------------------------------------------------------
@@ -183,7 +183,7 @@ workflow = [
         ]
     ),
     # ----------------------------------------------------------------------------------------------
-    # Parameterize LAA and its lateral/posterior anchor paths
+    # Parameterize remaining paths
     Step(
         id="path_parameterization_remaining",
         description="""Parameterize LAA and its lateral/posterior anchors""",
@@ -192,6 +192,8 @@ workflow = [
             ("LAA",),
             ("anchor", "LAA_lateral"),
             ("anchor", "LAA_posterior"),
+            ("anchor", "LSPV_MV_lateral"),
+            ("anchor", "RIPV_MV_posterior"),
         ]
     ),
 ]
