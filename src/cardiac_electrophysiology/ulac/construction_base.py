@@ -110,38 +110,6 @@ def construct_shortest_path_between_subsets(
 
 
 # --------------------------------------------------------------------------------------------------
-def __extract_region_from_boundary(
-    mesh: pv.PolyData, boundary_inds: np.ndarray, outside_inds: np.ndarray
-) -> np.ndarray:
-    mesh_points_without_boundary = np.setdiff1d(np.arange(mesh.number_of_points), boundary_inds)
-    mesh_without_boundary = mesh.extract_points(mesh_points_without_boundary, adjacent_cells=False)
-    submeshes = mesh_without_boundary.split_bodies()
-    coinciding_outside_inds = np.where(
-        submeshes[0].point_data["vtkOriginalPointIds"] == outside_inds[0]
-    )[0]
-    inside_mesh = submeshes[0] if coinciding_outside_inds.size == 0 else submeshes[1]
-    seed_ind = inside_mesh.point_data["vtkOriginalPointIds"][0]
-
-    tm_mesh = tm.Trimesh(vertices=mesh.points, faces=mesh.faces.reshape(-1, 4)[:, 1:4])
-    boundary_ind_mask = np.zeros(mesh.number_of_points, dtype=np.bool_)
-    boundary_ind_mask[boundary_inds] = True
-
-    graph = ig.Graph(tm_mesh.edges_unique, directed=False)
-    adjacency = graph.get_adjacency_sparse()
-    adjacency = adjacency.tocoo()
-    _, ind_starts = np.unique(adjacency.row, return_index=True)
-    ind_neighbors = adjacency.col
-    submesh_inds = _extract_region_from_boundary(
-        ind_starts, ind_neighbors, seed_ind, boundary_ind_mask, mesh.number_of_points
-    )
-    pv_submesh = mesh.extract_points(submesh_inds, adjacent_cells=False)
-    connectivity = np.array(pv_submesh.cells.reshape(-1, 4)[:, 1:])
-    submesh = Submesh(inds=submesh_inds, connectivity=connectivity)
-
-    return submesh
-
-
-# --------------------------------------------------------------------------------------------------
 def extract_region_from_boundary(
     mesh: pv.PolyData, boundary_inds: np.ndarray, outside_inds: np.ndarray
 ) -> np.ndarray:
@@ -217,45 +185,6 @@ def _extract_region_from_boundary(
                 active_list.append(neighbor_cell_ind)
 
     return np.where(visited_cells)[0]
-
-
-# --------------------------------------------------------------------------------------------------
-@njit
-def __extract_region_from_boundary(
-    index_starts: np.ndarray,
-    index_neighbors: np.ndarray,
-    seed_ind: int,
-    boundary_ind_mask: np.ndarray,
-    number_of_points: int,
-) -> np.ndarray:
-    visited_inds = np.zeros(number_of_points, dtype=np.bool_)
-    active_list = List([seed_ind])
-    neighbor_inds = List([seed_ind])
-    neighbor_inds.clear()
-
-    while active_list:
-        current_ind = active_list.pop()
-        visited_inds[current_ind] = True
-        # Get all admissible neighbor edges
-        start_ind = index_starts[current_ind]
-        end_ind = (
-            index_starts[current_ind + 1]
-            if current_ind + 1 < index_starts.size
-            else index_neighbors.size
-        )
-        is_boundary = boundary_ind_mask[current_ind]
-        for i in range(start_ind, end_ind):
-            if is_boundary and (not boundary_ind_mask[index_neighbors[i]]):
-                continue
-            neighbor_inds.append(index_neighbors[i])
-        # Add unvisited neighbors to active list
-        for i in range(len(neighbor_inds)):
-            neighbor_ind = neighbor_inds[i]
-            if not visited_inds[neighbor_ind]:
-                active_list.append(neighbor_ind)
-        neighbor_inds.clear()
-
-    return np.where(visited_inds)[0]
 
 
 # ==================================================================================================
