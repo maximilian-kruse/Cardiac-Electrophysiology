@@ -80,9 +80,6 @@ per-file-ignores = { "test/*" = [
 ] }
 pydocstyle.convention = "google"
 
-[tool.ruff.format]
-exclude = ["src/cardiac_electrophysiology/ulac/specifications.py"]
-
 
 # ==================================================================================================
 # Pytest
