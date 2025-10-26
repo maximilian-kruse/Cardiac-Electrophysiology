@@ -962,7 +962,7 @@ packages:
 - pypi: ./
   name: cardiac-electrophysiology
   version: 0.1.0
-  sha256: 3d5cc57c610dff398dd96e88b11ba8b98878e43c5eae168590b07695d3b0389b
+  sha256: 0cd68d3cf10dfc7931bfe6c893e67ccc4eb3deb97e5e39f9fe4f3d59bfc9fb1f
   requires_python: '>=3.13'
   editable: true
 - conda: https://conda.anaconda.org/conda-forge/noarch/certifi-2025.10.5-pyhd8ed1ab_0.conda
