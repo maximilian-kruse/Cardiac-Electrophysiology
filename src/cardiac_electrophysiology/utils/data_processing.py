@@ -1,5 +1,4 @@
 import numpy as np
-import pyvista as pv
 import scipy.sparse as sp
 import scipy.stats as st
 
