@@ -61,4 +61,4 @@ class EikonalPTSMap(components.ParameterToSolutionMap):
         adjoint_solution = derivative_solver.solve(adjoint_vector)
         gradient = adjoint_solution.T @ sparse_partial_parameter
         gradient = self._simplex_to_vertex_matrix @ gradient
-        return None
+        return gradient

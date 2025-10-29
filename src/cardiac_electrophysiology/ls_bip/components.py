@@ -46,7 +46,7 @@ class GaussianLogLikelihood:
 
     # ----------------------------------------------------------------------------------------------
     def evaluate_cost(self, solution_vector: np.ndarray[tuple[int], np.dtype[np.float64]]) -> float:
-        difference_vector = self._observation_matrix @ (solution_vector - self._data_vector)
+        difference_vector = self._observation_matrix @ solution_vector - self._data_vector
         cost = 0.5 * difference_vector.T @ self._precision_matrix @ difference_vector
         return cost
 
@@ -54,7 +54,7 @@ class GaussianLogLikelihood:
     def evaluate_gradient(
         self, solution_vector: np.ndarray[tuple[int], np.dtype[np.float64]]
     ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
-        difference_vector = self._observation_matrix @ (solution_vector - self._data_vector)
+        difference_vector = self._observation_matrix @ solution_vector - self._data_vector
         gradient = self._observation_matrix.T @ self._precision_matrix @ difference_vector
         return gradient
 
