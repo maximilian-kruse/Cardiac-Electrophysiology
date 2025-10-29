@@ -15,7 +15,7 @@ platforms = ["linux-64"]
 
 [tool.pixi.pypi-dependencies]
 cardiac_electrophysiology = { path = ".", editable = true }
-eikonax = ">=0.3.6"
+eikonax = ">=0.4.0"
 fast-simplification = ">=0.1.12"
 libigl = ">=2.6.1"
 
@@ -42,6 +42,7 @@ networkx = ">=3.5"
 igraph = ">=0.10.16"
 python-igraph = ">=0.11.9"
 jax = ">=0.7.2,<0.8"
+sparse = ">=0.17.0,<0.18"
 
 
 # ==================================================================================================

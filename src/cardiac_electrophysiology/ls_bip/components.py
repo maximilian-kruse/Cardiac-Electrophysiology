@@ -84,6 +84,7 @@ class ParameterToSolutionMap(ABC):
     # ----------------------------------------------------------------------------------------------
     def evaluate_gradient(
         self,
+        solution_vector: np.ndarray[tuple[int], np.dtype[np.float64]],
         parameter_vector: np.ndarray[tuple[int], np.dtype[np.float64]],
         adjoint_vector: np.ndarray[tuple[int], np.dtype[np.float64]],
     ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
@@ -92,8 +93,10 @@ class ParameterToSolutionMap(ABC):
     # ----------------------------------------------------------------------------------------------
     def evaluate_hessian_vector_product(
         self,
+        solution_vector: np.ndarray[tuple[int], np.dtype[np.float64]],
         parameter_vector: np.ndarray[tuple[int], np.dtype[np.float64]],
         direction_vector: np.ndarray[tuple[int], np.dtype[np.float64]],
         adjoint_vector: np.ndarray[tuple[int], np.dtype[np.float64]],
+        gradient_vector: np.ndarray[tuple[int], np.dtype[np.float64]],
     ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
         raise NotImplementedError
