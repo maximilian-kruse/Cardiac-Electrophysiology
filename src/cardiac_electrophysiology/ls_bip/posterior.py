@@ -84,10 +84,15 @@ class LogPosterior:
     def evaluate_cost(
         self, parameter_vector: np.ndarray[tuple[int], np.dtype[np.float64]]
     ) -> float:
+        print("======== Cost Evaluation ========")
+        print(f"Parameter_vector in: [{np.min(parameter_vector)}, {np.max(parameter_vector)}]")
         solution_vector = self._parameter_to_solution_map.evaluate_forward(parameter_vector)
         likelihood_cost = self._likelihood.evaluate_cost(solution_vector)
         prior_cost = self._prior.evaluate_cost(parameter_vector)
         total_cost = likelihood_cost + prior_cost
+        print("prior_cost:", prior_cost)
+        print("likelihood_cost:", likelihood_cost)
+        print(" ")
         self._cached_state.parameter_vector = parameter_vector
         self._cached_state.set_solution_vector(solution_vector, parameter_vector)
         return total_cost
@@ -97,12 +102,21 @@ class LogPosterior:
         self,
         parameter_vector: np.ndarray[tuple[int], np.dtype[np.float64]],
     ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
+        print("======== Gradient Evaluation ========")
+        print(f"Parameter_vector in: [{np.min(parameter_vector)}, {np.max(parameter_vector)}]")
         solution_vector = self._cached_state.get_solution_vector(parameter_vector)
         likelihood_gradient = self._likelihood.evaluate_gradient(solution_vector)
+        print(
+            f"likelihood_gradient in: [{np.min(likelihood_gradient)}, {np.max(likelihood_gradient)}]"
+        )
         pts_gradient = self._parameter_to_solution_map.evaluate_gradient(
             solution_vector, parameter_vector, likelihood_gradient
         )
+        print(
+            f"pts_gradient in: [{np.min(pts_gradient)}, {np.max(pts_gradient)}]"
+        )
         prior_gradient = self._prior.evaluate_gradient(parameter_vector)
+        print(f"prior_gradient in: [{np.min(prior_gradient)}, {np.max(prior_gradient)}]")
         total_gradient = pts_gradient + prior_gradient
         self._cached_state.set_gradient_vector(pts_gradient, parameter_vector)
         return total_gradient
