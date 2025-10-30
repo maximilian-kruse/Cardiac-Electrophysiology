@@ -1,5 +1,5 @@
 [project]
-authors = [{name = "Max Kruse", email = "maximilian.kruse@kit.edu"}]
+authors = [{name = "Maximilian Kruse", email = "maximilian.kruse@kit.edu"}]
 name = "cardiac-electrophysiology"
 requires-python = ">= 3.13"
 version = "0.1.0"
