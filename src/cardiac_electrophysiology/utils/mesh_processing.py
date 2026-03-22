@@ -20,7 +20,7 @@ def convert_unstructured_to_polydata_mesh(mesh: pv.UnstructuredGrid) -> pv.PolyD
 
 
 # --------------------------------------------------------------------------------------------------
-def coarsen_mesh_with_feature_tags(
+def coarsen_mesh_with_feature_tags_and_fibers(
     mesh: pv.PolyData,
     tag_values: list[int],
     decimation_factor: Real,
@@ -50,6 +50,9 @@ def coarsen_mesh_with_feature_tags(
             feature_mesh.cell_data["vtkOriginalCellIds"]
         ] = tag_value
         fine_mesh.cell_data["anatomical_tags"][tag_mask] = 0
+
+    interpolated_mesh = interpolated_mesh.point_data_to_cell_data()
+    smoothened_mesh.cell_data["fibers"] = interpolated_mesh.cell_data["fibers"]
 
     smoothened_mesh = fix_feature_tag_defects(smoothened_mesh)
     return smoothened_mesh
