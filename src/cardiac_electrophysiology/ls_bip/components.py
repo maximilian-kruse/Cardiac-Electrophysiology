@@ -79,7 +79,7 @@ class ParameterToSolutionMap(ABC):
     def evaluate_forward(
         self, parameter_vector: np.ndarray[tuple[int], np.dtype[np.float64]]
     ) -> float:
-        pass
+        raise NotImplementedError
 
     # ----------------------------------------------------------------------------------------------
     def evaluate_gradient(
