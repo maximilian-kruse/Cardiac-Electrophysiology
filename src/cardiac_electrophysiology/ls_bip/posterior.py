@@ -1,6 +1,6 @@
 import numpy as np
 
-from . import components
+from . import components, logging
 
 
 # ==================================================================================================
@@ -71,28 +71,33 @@ class LogPosterior:
     # ----------------------------------------------------------------------------------------------
     def __init__(
         self,
-        likelihood: object,
+        likelihood: components.Likelihood,
         parameter_to_solution_map: components.ParameterToSolutionMap,
-        prior: object,
+        prior: components.Prior,
+        logger: logging.LSBIPLogger | None = None,
     ):
-        self._likelihood = likelihood
-        self._parameter_to_solution_map = parameter_to_solution_map
-        self._prior = prior
+        self.likelihood = likelihood
+        self.parameter_to_solution_map = parameter_to_solution_map
+        self.prior = prior
         self._cached_state = CachedState()
+        self._logger = logger
 
     # ----------------------------------------------------------------------------------------------
     def evaluate_cost(
         self, parameter_vector: np.ndarray[tuple[int], np.dtype[np.float64]]
     ) -> float:
-        print("======== Cost Evaluation ========")
-        print(f"Parameter_vector in: [{np.min(parameter_vector)}, {np.max(parameter_vector)}]")
-        solution_vector = self._parameter_to_solution_map.evaluate_forward(parameter_vector)
-        likelihood_cost = self._likelihood.evaluate_cost(solution_vector)
-        prior_cost = self._prior.evaluate_cost(parameter_vector)
+        if self._logger:
+            self._logger.log_header("Cost Evaluation")
+            self._logger.info(
+                f"Parameter_vector in: [{np.min(parameter_vector)}, {np.max(parameter_vector)}]"
+            )
+        solution_vector = self.parameter_to_solution_map.evaluate_forward(parameter_vector)
+        likelihood_cost = self.likelihood.evaluate_cost(solution_vector)
+        prior_cost = self.prior.evaluate_cost(parameter_vector)
         total_cost = likelihood_cost + prior_cost
-        print("prior_cost:", prior_cost)
-        print("likelihood_cost:", likelihood_cost)
-        print(" ")
+        if self._logger:
+            self._logger.info(f"prior_cost: {prior_cost}")
+            self._logger.info(f"likelihood_cost: {likelihood_cost}")
         self._cached_state.parameter_vector = parameter_vector
         self._cached_state.set_solution_vector(solution_vector, parameter_vector)
         return total_cost
@@ -102,21 +107,27 @@ class LogPosterior:
         self,
         parameter_vector: np.ndarray[tuple[int], np.dtype[np.float64]],
     ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
-        print("======== Gradient Evaluation ========")
-        print(f"Parameter_vector in: [{np.min(parameter_vector)}, {np.max(parameter_vector)}]")
+        if self._logger:
+            self._logger.log_header("Gradient Evaluation")
+            self._logger.info(
+                f"Parameter_vector in: [{np.min(parameter_vector)}, {np.max(parameter_vector)}]"
+            )
         solution_vector = self._cached_state.get_solution_vector(parameter_vector)
-        likelihood_gradient = self._likelihood.evaluate_gradient(solution_vector)
-        print(
-            f"likelihood_gradient in: [{np.min(likelihood_gradient)}, {np.max(likelihood_gradient)}]"
-        )
-        pts_gradient = self._parameter_to_solution_map.evaluate_gradient(
+        likelihood_gradient = self.likelihood.evaluate_gradient(solution_vector)
+        if self._logger:
+            self._logger.info(
+                f"likelihood_gradient in: [{np.min(likelihood_gradient)}, {np.max(likelihood_gradient)}]"
+            )
+        pts_gradient = self.parameter_to_solution_map.evaluate_gradient(
             solution_vector, parameter_vector, likelihood_gradient
         )
-        print(
-            f"pts_gradient in: [{np.min(pts_gradient)}, {np.max(pts_gradient)}]"
-        )
-        prior_gradient = self._prior.evaluate_gradient(parameter_vector)
-        print(f"prior_gradient in: [{np.min(prior_gradient)}, {np.max(prior_gradient)}]")
+        if self._logger:
+            self._logger.info(f"pts_gradient in: [{np.min(pts_gradient)}, {np.max(pts_gradient)}]")
+        prior_gradient = self.prior.evaluate_gradient(parameter_vector)
+        if self._logger:
+            self._logger.info(
+                f"prior_gradient in: [{np.min(prior_gradient)}, {np.max(prior_gradient)}]"
+            )
         total_gradient = pts_gradient + prior_gradient
         self._cached_state.set_gradient_vector(pts_gradient, parameter_vector)
         return total_gradient
