@@ -4,7 +4,9 @@ import numpy as np
 # ==================================================================================================
 class AngleParameterTransformator:
     # ----------------------------------------------------------------------------------------------
-    def __init__(self, mean_angle: float, clip_tolerance: float = 1e-6) -> None:
+    def __init__(
+        self, mean_angle: np.ndarray[tuple[int], np.dtype[np.float64]], clip_tolerance: float = 1e-6
+    ) -> None:
         self.mean_angle = mean_angle
         self._clip_tolerance = clip_tolerance
         self.mean_parameter = self._transform_angle_to_parameter(mean_angle + np.pi / 2)
@@ -28,7 +30,8 @@ class AngleParameterTransformator:
 
     # ----------------------------------------------------------------------------------------------
     def _transform_angle_to_parameter(
-        self, angle: np.ndarray[tuple[int], np.dtype[np.float64]] | float,
+        self,
+        angle: np.ndarray[tuple[int], np.dtype[np.float64]] | float,
     ) -> np.ndarray[tuple[int], np.dtype[np.float64]] | float:
         parameter = np.arctanh(
             np.cos(np.clip(angle, self._clip_tolerance, 2 * np.pi - self._clip_tolerance))

@@ -21,7 +21,7 @@ def convert_unstructured_to_polydata_mesh(mesh: pv.UnstructuredGrid) -> pv.PolyD
 
 # ==================================================================================================
 def convert_vtu_to_xdmf_mesh(input_path: Path) -> None:
-    output_path = input_path.with_suffix(".xdmf")
+    output_path = input_path.parent / "mesh.xdmf"
     mesh = meshio.read(str(input_path))
     meshio.write(str(output_path), mesh, file_format="xdmf")
 
