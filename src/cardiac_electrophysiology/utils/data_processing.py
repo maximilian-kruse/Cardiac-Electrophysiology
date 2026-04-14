@@ -6,10 +6,11 @@ import scipy.stats as st
 
 # ==================================================================================================
 def compute_axial_mean_and_variance(
-    angle_samples: np.ndarray[tuple[int], np.dtype[np.float64]], axis: int = 0
+    angle_samples: np.ndarray[tuple[int, int], np.dtype[np.float64]], axis: int = 0
 ) -> tuple[
     np.ndarray[tuple[int], np.dtype[np.float64]], np.ndarray[tuple[int], np.dtype[np.float64]]
 ]:
+    angle_samples = np.atleast_2d(angle_samples)
     normalized_angle_samples = np.mod(angle_samples, np.pi)
     circ_mean_doubled = st.circmean(2 * normalized_angle_samples, axis=axis)
     circ_std_doubled = st.circstd(2 * normalized_angle_samples, axis=axis)

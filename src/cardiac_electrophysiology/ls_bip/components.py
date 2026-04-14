@@ -88,7 +88,7 @@ class Prior(ABC):
 
     # ----------------------------------------------------------------------------------------------
     @abstractmethod
-    def sample(
+    def generate_sample(
         self, parameter_vector: np.ndarray[tuple[int], np.dtype[np.float64]]
     ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
         raise NotImplementedError

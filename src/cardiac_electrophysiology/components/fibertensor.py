@@ -51,11 +51,10 @@ class FiberTensor(tensorfield.AbstractSimplexTensor):
         long_velocity = self._long_velocities[simplex_ind]
         trans_velocity = self._trans_velocities[simplex_ind]
         mean_angle = self._mean_angle_vector[simplex_ind]
-        centered_parameter = parameter - self._mean_parameter_vector[simplex_ind]
         angle = (
             jnp.arccos(
                 jnp.clip(
-                    jnp.tanh(centered_parameter),
+                    jnp.tanh(parameter),
                     -1 + self._clip_tolerance,
                     1 - self._clip_tolerance,
                 )

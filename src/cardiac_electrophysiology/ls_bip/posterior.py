@@ -98,6 +98,7 @@ class LogPosterior:
         if self._logger:
             self._logger.info(f"prior_cost: {prior_cost}")
             self._logger.info(f"likelihood_cost: {likelihood_cost}")
+            self._logger.info(f"total_cost: {total_cost}")
         self._cached_state.parameter_vector = parameter_vector
         self._cached_state.set_solution_vector(solution_vector, parameter_vector)
         return total_cost
@@ -118,15 +119,22 @@ class LogPosterior:
             self._logger.info(
                 f"likelihood_gradient in: [{np.min(likelihood_gradient)}, {np.max(likelihood_gradient)}]"
             )
+            self._logger.info(
+                f"likelihood_gradient norm: {np.linalg.norm(likelihood_gradient)}"
+            )
         pts_gradient = self.parameter_to_solution_map.evaluate_gradient(
             solution_vector, parameter_vector, likelihood_gradient
         )
         if self._logger:
             self._logger.info(f"pts_gradient in: [{np.min(pts_gradient)}, {np.max(pts_gradient)}]")
+            self._logger.info(f"pts_gradient norm: {np.linalg.norm(pts_gradient)}")
         prior_gradient = self.prior.evaluate_gradient(parameter_vector)
         if self._logger:
             self._logger.info(
                 f"prior_gradient in: [{np.min(prior_gradient)}, {np.max(prior_gradient)}]"
+            )
+            self._logger.info(
+                f"prior_gradient norm: {np.linalg.norm(prior_gradient)}"
             )
         total_gradient = pts_gradient + prior_gradient
         self._cached_state.set_gradient_vector(pts_gradient, parameter_vector)

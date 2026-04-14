@@ -12,11 +12,12 @@ from eikonax import tensorfield as eikonax_tensorfield
 from ls_prior import builder as ls_prior_builder
 from mpi4py import MPI
 
-from cardiac_electrophysiology.components import fibertensor, parameter, prior, ptsmap
+from cardiac_electrophysiology.components import fibertensor, prior, ptsmap, transform
 from cardiac_electrophysiology.ls_bip import components as ls_bip_components
 from cardiac_electrophysiology.ls_bip import logging as ls_bip_logging
 from cardiac_electrophysiology.ls_bip import posterior as ls_bip_posterior
 from cardiac_electrophysiology.ls_bip import utilities as ls_bip_utilities
+from cardiac_electrophysiology.utils import data_processing
 
 
 # ==================================================================================================
@@ -26,6 +27,7 @@ class Paths:
     xdmf_mesh_path: Path
     basis_vecs_path: Path
     log_file_path: Path
+    ground_truth_path: Path | None = None
     noisy_data_path: Path | None = None
     fiber_ensemble_path: Path | None = None
 
@@ -80,10 +82,9 @@ class PosteriorBuilderSettings:
 @dataclass
 class PosteriorBuilderOutput:
     pv_mesh: pv.UnstructuredGrid
-    fiber_transformator: parameter.AngleFiberTransformator
-    angle_transformator: parameter.AngleParameterTransformator
+    fiber_transformator: transform.AngleFiberTransformator
+    angle_transformator: transform.AngleParameterTransformator
     ground_truth_parameter: np.ndarray[tuple[int], np.dtype[np.float64]]
-    prior_mean_parameter: np.ndarray[tuple[int], np.dtype[np.float64]]
     observation_inds: np.ndarray[tuple[int], np.dtype[np.float64]]
     noisy_data: np.ndarray[tuple[int], np.dtype[np.float64]]
 
@@ -105,9 +106,9 @@ class PosteriorBuilder:
         self._mesh_simplices = None
         self._basis_vectors = None
         self._fiber_field_ensemble = None
+        self._ground_truth_fiber_field = None
         self._ground_truth_parameter = None
         self._mean_angle_field = None
-        self._prior_mean_parameter = None
         self._observation_inds = None
         self._noisy_data = None
         self._fiber_transformator = None
@@ -119,15 +120,16 @@ class PosteriorBuilder:
     # ----------------------------------------------------------------------------------------------
     def build(self, return_additional_data: bool = False) -> None:
         self._pv_mesh, self._dlx_mesh, self._basis_vectors = self._load_mesh_data()
-        self._mesh_vertices, self._mesh_simplices, self._ground_truth_fiber_field = (
-            self._extract_mesh_data()
-        )
-        self._fiber_transformator = parameter.AngleFiberTransformator(
+        self._mesh_vertices, self._mesh_simplices = self._extract_mesh_data()
+        self._ground_truth_fiber_field = self._get_ground_truth_fiber_field()
+        self._fiber_transformator = transform.AngleFiberTransformator(
             self._basis_vectors[..., 0], self._basis_vectors[..., 1]
         )
+        self._ground_truth_angle = self._fiber_transformator.compute_angle_from_fiber(
+            self._ground_truth_fiber_field
+        )
         self._mean_angle_field = self._compute_mean_angle_field()
-        self._angle_transformator = parameter.AngleParameterTransformator(self._mean_angle_field)
-        self._prior_mean_parameter = self._angle_transformator.mean_parameter
+        self._angle_transformator = transform.AngleParameterTransformator(self._mean_angle_field)
 
         self._prior_component = self._create_prior()
         tensor_field_object = self._create_tensor_field()
@@ -142,11 +144,10 @@ class PosteriorBuilder:
         )
         if return_additional_data:
             additional_output = PosteriorBuilderOutput(
-                pv_mesh = self._pv_mesh,
+                pv_mesh=self._pv_mesh,
                 fiber_transformator=self._fiber_transformator,
                 angle_transformator=self._angle_transformator,
                 ground_truth_parameter=self._ground_truth_parameter,
-                prior_mean_parameter=self._prior_mean_parameter,
                 observation_inds=self._observation_inds,
                 noisy_data=self._noisy_data,
             )
@@ -177,33 +178,33 @@ class PosteriorBuilder:
     ]:
         vertices = self._pv_mesh.points
         simplices = self._pv_mesh.cells.reshape(-1, 4)[:, 1:]
-        if self._strategies.ground_truth_strategy == "from_mesh":
-            fiber_vectors = self._pv_mesh.cell_data["fibers"]
-        else:
-            fiber_vectors = None
-        return vertices, simplices, fiber_vectors
+        return vertices, simplices
+
+    # ----------------------------------------------------------------------------------------------
+    def _get_ground_truth_fiber_field(self) -> np.ndarray[tuple[int, int], np.dtype[np.float64]]:
+        match self._strategies.ground_truth_strategy:
+            case "from_mesh":
+                fiber_vectors = self._pv_mesh.cell_data["fibers"]
+            case "from_file":
+                fiber_vectors = np.load(self._paths.ground_truth_path)
+        return fiber_vectors
 
     # ----------------------------------------------------------------------------------------------
     def _compute_mean_angle_field(self) -> np.ndarray:
         match self._strategies.mean_strategy:
             case "from_ground_truth":
-                ground_truth_angle = self._fiber_transformator.compute_angle_from_fiber(
-                    self._ground_truth_fiber_field
-                )
-                mean_angle = np.mean(ground_truth_angle) * np.ones(self._mesh_simplices.shape[0])
+                mean_angle = data_processing.compute_axial_mean_and_variance(
+                    self._ground_truth_angle[..., None]
+                )[0] * np.ones(self._mesh_simplices.shape[0])
             case "from_ensemble":
-                accumulated_field = sum(
-                    self._fiber_field_ensemble[key] for key in self._fiber_field_ensemble.files
-                )
-                mean_fiber_field = accumulated_field / len(self._fiber_field_ensemble.files)
-                mean_angle = self._fiber_transformator.compute_angle_from_fiber(mean_fiber_field)
+                raise NotImplementedError
         return mean_angle
 
     # ----------------------------------------------------------------------------------------------
     def _create_prior(self) -> prior.FiberFieldPrior:
         prior_settings = ls_prior_builder.BilaplacianPriorSettings(
             mesh=self._dlx_mesh,
-            mean_vector=self._prior_mean_parameter,
+            mean_vector=np.zeros(self._mesh_simplices.shape[0]),
             kappa=self._prior_parameters.kappa,
             tau=self._prior_parameters.tau,
             seed=self._prior_parameters.seed,

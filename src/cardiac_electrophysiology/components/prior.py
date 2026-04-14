@@ -74,10 +74,10 @@ class FiberFieldPrior(ls_bip_components.Prior):
 
     # ----------------------------------------------------------------------------------------------
     @override
-    def sample(
-        self, _parameter_vector: np.ndarray[tuple[int], np.dtype[np.float64]]
+    def generate_sample(
+        self, _parameter_vector: None = None
     ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
-        dlx_sample_on_vertices = self._spde_prior.sample()
+        dlx_sample_on_vertices = self._spde_prior.generate_sample()
         dlx_sample_on_cells = self._vertex_to_simplex_matrix @ dlx_sample_on_vertices
         sample = self._dlx_mesh_mapping.map_cell_data_from_dolfinx_ordering(dlx_sample_on_cells)
         return sample

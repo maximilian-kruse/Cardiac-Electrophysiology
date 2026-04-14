@@ -28,11 +28,14 @@ def visualize_full_vector_field(
 def visualize_full_scalar_field(
     mesh: pv.PolyData,
     scalar_field: np.ndarray[tuple[int], np.dtype[np.float64]],
+    clim: tuple[float, float] | None = None,
+    circular: bool = True,
 ) -> None:
     copied_mesh = mesh.copy()
     copied_mesh.cell_data["scalar_field_to_plot"] = scalar_field
     plotter = pv.Plotter()
-    plotter.add_mesh(copied_mesh, scalars="scalar_field_to_plot", cmap="viridis")
+    cmap = "colorwheel" if circular else "viridis"
+    plotter.add_mesh(copied_mesh, scalars="scalar_field_to_plot", cmap=cmap, clim=clim)
     plotter.show()
 
 
@@ -49,4 +52,16 @@ def visualize_partial_scalar_field(
         centers_subset, color="red", point_size=point_size, render_points_as_spheres=True
     )
     plotter.add_mesh(mesh, color=mesh_color)
+    plotter.show()
+
+
+# --------------------------------------------------------------------------------------------------
+def visualize_arrival_times(
+    mesh: pv.PolyData,
+    scalar_field: np.ndarray[tuple[int], np.dtype[np.float64]],
+) -> None:
+    copied_mesh = mesh.copy()
+    copied_mesh.point_data["scalar_field_to_plot"] = scalar_field
+    plotter = pv.Plotter()
+    plotter.add_mesh(copied_mesh, scalars="scalar_field_to_plot", cmap="viridis")
     plotter.show()

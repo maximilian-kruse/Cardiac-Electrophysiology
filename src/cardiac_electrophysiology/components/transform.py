@@ -5,38 +5,30 @@ import numpy as np
 class AngleParameterTransformator:
     # ----------------------------------------------------------------------------------------------
     def __init__(
-        self, mean_angle: np.ndarray[tuple[int], np.dtype[np.float64]], clip_tolerance: float = 1e-6
+        self, mean_angle: np.ndarray[tuple[int], np.dtype[np.float64]], clip_tolerance: float = 1e-12
     ) -> None:
         self.mean_angle = mean_angle
         self._clip_tolerance = clip_tolerance
-        self.mean_parameter = self._transform_angle_to_parameter(mean_angle + np.pi / 2)
 
     # ----------------------------------------------------------------------------------------------
     def compute_parameter_from_angle(
         self, angle: np.ndarray[tuple[int], np.dtype[np.float64]]
     ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
         centered_angles = angle - self.mean_angle + np.pi / 2
-        centered_parameter = self._transform_angle_to_parameter(centered_angles)
-        parameter = centered_parameter + self.mean_parameter
+        centered_angles[centered_angles < 0] += np.pi
+        centered_angles[centered_angles > np.pi] -= np.pi
+        parameter = np.arctanh(np.cos(centered_angles))
         return parameter
 
     # ----------------------------------------------------------------------------------------------
     def compute_angle_from_parameter(
-        self, parameter: np.ndarray[tuple[int], np.dtype[np.float64]]
+        self, parameter: np.ndarray[tuple[int], np.dtype[np.float64]], shift_range: bool = True
     ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
-        centered_parameter = parameter - self.mean_parameter
-        angle = np.arccos(np.tanh(centered_parameter)) + self.mean_angle - np.pi / 2
+        angle = np.arccos(np.tanh(parameter)) + self.mean_angle - np.pi / 2
+        if shift_range:
+            angle[angle < 0] += np.pi
+            angle[angle > np.pi] -= np.pi
         return angle
-
-    # ----------------------------------------------------------------------------------------------
-    def _transform_angle_to_parameter(
-        self,
-        angle: np.ndarray[tuple[int], np.dtype[np.float64]] | float,
-    ) -> np.ndarray[tuple[int], np.dtype[np.float64]] | float:
-        parameter = np.arctanh(
-            np.cos(np.clip(angle, self._clip_tolerance, 2 * np.pi - self._clip_tolerance))
-        )
-        return parameter
 
 
 # ==================================================================================================
