@@ -211,3 +211,6 @@ __marimo__/
 
 # Working notebook
 development.ipynb
+
+# Result directory
+results/
