@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from cardiac_electrophysiology import builder
+from cardiac_electrophysiology import posterior_builder
 from cardiac_electrophysiology.ls_bip import posterior as lsbip_posterior
 
 
@@ -22,7 +22,7 @@ class MapAnalysisData:
 def compute_map_result_analysis(
     map_parameter: np.ndarray[tuple[int], np.dtype[np.float64]],
     posterior: lsbip_posterior.LogPosterior,
-    additional_output: builder.PosteriorBuilderOutput,
+    additional_output: posterior_builder.PosteriorBuilderOutput,
 ) -> MapAnalysisData:
     ground_truth_parameter = additional_output.ground_truth_parameter
     mean_parameter = np.zeros_like(ground_truth_parameter)
