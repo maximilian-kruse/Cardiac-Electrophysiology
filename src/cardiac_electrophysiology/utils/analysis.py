@@ -59,8 +59,13 @@ def compute_map_result_analysis(
     posterior: lsbip_posterior.LogPosterior,
     additional_output: posterior_builder.PosteriorBuilderOutput,
 ) -> MapAnalysisData:
-    prior_mean_parameter = additional_output.prior_mean_parameter
-    ground_truth_parameter = additional_output.ground_truth_parameter
+    prior_mean_parameter = shift_angles_to_minimize_axial_variance(
+        additional_output.prior_mean_parameter
+    )
+    ground_truth_parameter = shift_angles_to_minimize_axial_variance(
+        additional_output.ground_truth_parameter
+    )
+    map_parameter = shift_angles_to_minimize_axial_variance(map_parameter)
     prior_mean_predictive = posterior.parameter_to_solution_map.evaluate_forward(
         prior_mean_parameter
     )
