@@ -7,9 +7,30 @@ from . import components, logging
 class CachedState:
     # ----------------------------------------------------------------------------------------------
     def __init__(self):
-        self.parameter_vector = None
+        self._parameter_vector = None
         self._solution_vector = None
         self._gradient_vector = None
+
+    # ----------------------------------------------------------------------------------------------
+    def get_parameter_vector(self) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
+        return self._parameter_vector
+
+    # ----------------------------------------------------------------------------------------------
+    def set_parameter_vector(self, value: np.ndarray[tuple[int], np.dtype[np.float64]]) -> None:
+        self._parameter_vector = value
+        self._solution_vector = None
+        self._gradient_vector = None
+
+    # ----------------------------------------------------------------------------------------------
+    def get_solution_vector(
+        self, parameter_vector: np.ndarray[tuple[int], np.dtype[np.float64]]
+    ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
+        if self._parameter_vector is None or not np.allclose(
+            parameter_vector, self._parameter_vector
+        ):
+            return None
+        else:
+            return self._solution_vector
 
     # ----------------------------------------------------------------------------------------------
     def set_solution_vector(
@@ -17,8 +38,8 @@ class CachedState:
         value: np.ndarray[tuple[int], np.dtype[np.float64]],
         parameter_vector: np.ndarray[tuple[int], np.dtype[np.float64]],
     ) -> None:
-        if self.parameter_vector is None or not np.allclose(
-            parameter_vector, self.parameter_vector
+        if self._parameter_vector is None or not np.allclose(
+            parameter_vector, self._parameter_vector
         ):
             raise ValueError(
                 "given parameter vector does not match cached parameter vector, or"
@@ -27,16 +48,15 @@ class CachedState:
         self._solution_vector = value
 
     # ----------------------------------------------------------------------------------------------
-    def get_solution_vector(
+    def get_gradient_vector(
         self, parameter_vector: np.ndarray[tuple[int], np.dtype[np.float64]]
     ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
-        if self.parameter_vector is None or not np.allclose(
-            parameter_vector, self.parameter_vector
+        if self._parameter_vector is None or not np.allclose(
+            parameter_vector, self._parameter_vector
         ):
-            raise ValueError(
-                "Cached solution vector is not available for the given parameter vector."
-            )
-        return self._solution_vector
+            return None
+        else:
+            return self._gradient_vector
 
     # ----------------------------------------------------------------------------------------------
     def set_gradient_vector(
@@ -44,26 +64,14 @@ class CachedState:
         value: np.ndarray[tuple[int], np.dtype[np.float64]],
         parameter_vector: np.ndarray[tuple[int], np.dtype[np.float64]],
     ) -> None:
-        if self.parameter_vector is None or not np.allclose(
-            parameter_vector, self.parameter_vector
+        if self._parameter_vector is None or not np.allclose(
+            parameter_vector, self._parameter_vector
         ):
             raise ValueError(
                 "given parameter vector does not match cached parameter vector, or"
                 " no parameter vector is cached."
             )
         self._gradient_vector = value
-
-    # ----------------------------------------------------------------------------------------------
-    def get_gradient_vector(
-        self, parameter_vector: np.ndarray[tuple[int], np.dtype[np.float64]]
-    ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
-        if self.parameter_vector is None or not np.allclose(
-            parameter_vector, self.parameter_vector
-        ):
-            raise ValueError(
-                "Cached gradient vector is not available for the given parameter vector."
-            )
-        return self._gradient_vector
 
 
 # ==================================================================================================
@@ -99,7 +107,7 @@ class LogPosterior:
             self._logger.info(f"prior_cost: {prior_cost}")
             self._logger.info(f"likelihood_cost: {likelihood_cost}")
             self._logger.info(f"total_cost: {total_cost}")
-        self._cached_state.parameter_vector = parameter_vector
+        self._cached_state.set_parameter_vector(parameter_vector)
         self._cached_state.set_solution_vector(solution_vector, parameter_vector)
         return total_cost
 
@@ -114,14 +122,16 @@ class LogPosterior:
                 f"Parameter_vector in: [{np.min(parameter_vector)}, {np.max(parameter_vector)}]"
             )
         solution_vector = self._cached_state.get_solution_vector(parameter_vector)
+        if solution_vector is None:
+            solution_vector = self.parameter_to_solution_map.evaluate_forward(parameter_vector)
+            self._cached_state.set_parameter_vector(parameter_vector)
+            self._cached_state.set_solution_vector(solution_vector, parameter_vector)
         likelihood_gradient = self.likelihood.evaluate_gradient(solution_vector)
         if self._logger:
             self._logger.info(
                 f"likelihood_gradient in: [{np.min(likelihood_gradient)}, {np.max(likelihood_gradient)}]"
             )
-            self._logger.info(
-                f"likelihood_gradient norm: {np.linalg.norm(likelihood_gradient)}"
-            )
+            self._logger.info(f"likelihood_gradient norm: {np.linalg.norm(likelihood_gradient)}")
         pts_gradient = self.parameter_to_solution_map.evaluate_gradient(
             solution_vector, parameter_vector, likelihood_gradient
         )
@@ -133,9 +143,7 @@ class LogPosterior:
             self._logger.info(
                 f"prior_gradient in: [{np.min(prior_gradient)}, {np.max(prior_gradient)}]"
             )
-            self._logger.info(
-                f"prior_gradient norm: {np.linalg.norm(prior_gradient)}"
-            )
+            self._logger.info(f"prior_gradient norm: {np.linalg.norm(prior_gradient)}")
         total_gradient = pts_gradient + prior_gradient
         self._cached_state.set_gradient_vector(pts_gradient, parameter_vector)
         return total_gradient

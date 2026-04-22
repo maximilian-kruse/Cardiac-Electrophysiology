@@ -2,36 +2,6 @@ import numpy as np
 
 
 # ==================================================================================================
-class AngleParameterTransformator:
-    # ----------------------------------------------------------------------------------------------
-    def __init__(
-        self, mean_angle: np.ndarray[tuple[int], np.dtype[np.float64]], clip_tolerance: float = 1e-12
-    ) -> None:
-        self.mean_angle = mean_angle
-        self._clip_tolerance = clip_tolerance
-
-    # ----------------------------------------------------------------------------------------------
-    def compute_parameter_from_angle(
-        self, angle: np.ndarray[tuple[int], np.dtype[np.float64]]
-    ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
-        centered_angles = angle - self.mean_angle + np.pi / 2
-        centered_angles[centered_angles < 0] += np.pi
-        centered_angles[centered_angles > np.pi] -= np.pi
-        parameter = np.arctanh(np.cos(centered_angles))
-        return parameter
-
-    # ----------------------------------------------------------------------------------------------
-    def compute_angle_from_parameter(
-        self, parameter: np.ndarray[tuple[int], np.dtype[np.float64]], shift_range: bool = True
-    ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
-        angle = np.arccos(np.tanh(parameter)) + self.mean_angle - np.pi / 2
-        if shift_range:
-            angle[angle < 0] += np.pi
-            angle[angle > np.pi] -= np.pi
-        return angle
-
-
-# ==================================================================================================
 class AngleFiberTransformator:
     # ----------------------------------------------------------------------------------------------
     def __init__(
@@ -60,5 +30,4 @@ class AngleFiberTransformator:
             np.einsum("ij,ij->i", fiber_vector, self._basis_vector_two),
             np.einsum("ij,ij->i", fiber_vector, self._basis_vector_one),
         )
-        angle[angle < 0] += np.pi
         return angle

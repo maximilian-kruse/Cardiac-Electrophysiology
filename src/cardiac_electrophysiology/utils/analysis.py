@@ -1,9 +1,31 @@
 from dataclasses import dataclass
 
 import numpy as np
+import scipy.stats as st
 
 from cardiac_electrophysiology import posterior_builder
 from cardiac_electrophysiology.ls_bip import posterior as lsbip_posterior
+
+
+# ==================================================================================================
+def compute_axial_mean_and_variance(
+    angle_samples: np.ndarray[tuple[int, int], np.dtype[np.float64]], axis: int = 0
+) -> tuple[
+    np.ndarray[tuple[int], np.dtype[np.float64]], np.ndarray[tuple[int], np.dtype[np.float64]]
+]:
+    angle_samples = np.atleast_2d(angle_samples)
+    normalized_angle_samples = np.mod(angle_samples, np.pi)
+    circ_mean_doubled = st.circmean(2 * normalized_angle_samples, axis=axis)
+    circ_std_doubled = st.circstd(2 * normalized_angle_samples, axis=axis)
+    axial_mean = circ_mean_doubled / 2
+    axial_variance = (circ_std_doubled / 2) ** 2
+
+    shift_by_pi_mask = (axial_mean > 1 / 2 * np.pi) & (axial_mean <= 3 / 2 * np.pi)
+    shift_by_two_pi_mask = axial_mean > 3 / 2 * np.pi
+    axial_mean[shift_by_pi_mask] -= np.pi
+    axial_mean[shift_by_two_pi_mask] -= 2 * np.pi
+
+    return axial_mean, axial_variance
 
 
 # ==================================================================================================
@@ -66,5 +88,5 @@ def compute_map_result_analysis(
 
 def compute_axial_data_diff(angle_field_one, angle_field_two):
     raw_diff = angle_field_one - angle_field_two
-    diff_field = np.minimum(np.abs(raw_diff), np.pi - np.abs(raw_diff))
-    return diff_field
+    diff_metric = 0.5 * np.atan2(np.sin(2 * raw_diff), np.cos(2 * raw_diff))
+    return diff_metric

@@ -1,28 +1,43 @@
+from pathlib import Path
+
+import basix
+import dolfinx
+import meshio
 import numpy as np
 import pyvista as pv
 import scipy.sparse as sp
-import scipy.stats as st
+import ufl
+from mpi4py import MPI
 
 
 # ==================================================================================================
-def compute_axial_mean_and_variance(
-    angle_samples: np.ndarray[tuple[int, int], np.dtype[np.float64]], axis: int = 0
-) -> tuple[
-    np.ndarray[tuple[int], np.dtype[np.float64]], np.ndarray[tuple[int], np.dtype[np.float64]]
-]:
-    angle_samples = np.atleast_2d(angle_samples)
-    normalized_angle_samples = np.mod(angle_samples, np.pi)
-    circ_mean_doubled = st.circmean(2 * normalized_angle_samples, axis=axis)
-    circ_std_doubled = st.circstd(2 * normalized_angle_samples, axis=axis)
-    axial_mean = circ_mean_doubled / 2
-    axial_variance = (circ_std_doubled / 2) ** 2
+def convert_unstructured_to_polydata_mesh(mesh: pv.UnstructuredGrid) -> pv.PolyData:
+    point_data = mesh.point_data
+    cell_data = mesh.cell_data
+    polydata_mesh = pv.PolyData(mesh.points, mesh.cells)
+    for key in point_data:
+        polydata_mesh.point_data[key] = point_data[key]
+    for key in cell_data:
+        polydata_mesh.cell_data[key] = cell_data[key]
 
-    shift_by_pi_mask = (axial_mean > 1 / 2 * np.pi) & (axial_mean <= 3 / 2 * np.pi)
-    shift_by_two_pi_mask = axial_mean > 3 / 2 * np.pi
-    axial_mean[shift_by_pi_mask] -= np.pi
-    axial_mean[shift_by_two_pi_mask] -= 2 * np.pi
+    return polydata_mesh
 
-    return axial_mean, axial_variance
+
+# --------------------------------------------------------------------------------------------------
+def convert_vtu_to_xdmf_mesh(input_path: Path) -> None:
+    output_path = input_path.parent / "mesh.xdmf"
+    mesh = meshio.read(str(input_path))
+    meshio.write(str(output_path), mesh, file_format="xdmf")
+
+
+# --------------------------------------------------------------------------------------------------
+def create_dolfinx_mesh_from_pyvista_mesh(pv_mesh: pv.UnstructuredGrid) -> dolfinx.mesh.Mesh:
+    points = pv_mesh.points
+    cells = pv_mesh.cells.reshape(-1, 4)[:, 1:]
+    if not np.all(pv_mesh.celltypes == pv.CellType.TRIANGLE):
+        raise ValueError("Only triangular meshes are supported.")
+    ufl_type = ufl.Mesh(basix.ufl.element("Lagrange", "triangle", 1, shape=(2,)))
+    return dolfinx.mesh.create_mesh(MPI.COMM_WORLD, cells, points, ufl_type)
 
 
 # ==================================================================================================

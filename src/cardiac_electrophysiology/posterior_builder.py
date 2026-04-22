@@ -4,39 +4,28 @@ from pathlib import Path
 import dolfinx as dlx
 import numpy as np
 import pyvista as pv
-from dolfinx.io import XDMFFile
 from eikonax import derivator as eikonax_derivator
 from eikonax import preprocessing as eikonax_preprocessing
 from eikonax import solver as eikonax_solver
 from eikonax import tensorfield as eikonax_tensorfield
 from ls_prior import builder as ls_prior_builder
-from mpi4py import MPI
 
 from cardiac_electrophysiology.components import fibertensor, prior, ptsmap, transform
 from cardiac_electrophysiology.ls_bip import components as ls_bip_components
 from cardiac_electrophysiology.ls_bip import logging as ls_bip_logging
 from cardiac_electrophysiology.ls_bip import posterior as ls_bip_posterior
 from cardiac_electrophysiology.ls_bip import utilities as ls_bip_utilities
-from cardiac_electrophysiology.utils import data_processing
+from cardiac_electrophysiology.utils import mesh_utils
 
 
 # ==================================================================================================
 @dataclass
 class Paths:
-    vtu_mesh_path: Path
-    xdmf_mesh_path: Path
+    mesh_path: Path
     basis_vecs_path: Path
     log_file_path: Path
+    prior_mean_path: Path | None = None
     ground_truth_path: Path | None = None
-    noisy_data_path: Path | None = None
-    fiber_ensemble_path: Path | None = None
-
-
-@dataclass
-class Strategies:
-    ground_truth_strategy: str | None = "from_mesh"
-    mean_strategy: str | None = "from_ground_truth"
-    noisy_data_strategy: str | None = "from_ground_truth"
 
 
 @dataclass
@@ -59,8 +48,8 @@ class EikonalParameters:
 @dataclass
 class ObservationParameters:
     noise_variance: np.ndarray[tuple[int], np.dtype[np.float64]] | float
-    num_observations: int | None = None
-    seed: int | None = None
+    num_observations: int
+    seed: int
 
 
 @dataclass
@@ -72,7 +61,6 @@ class LoggerSettings:
 @dataclass
 class PosteriorBuilderSettings:
     paths: Paths
-    strategies: Strategies
     prior_parameters: PriorParameters
     eikonal_parameters: EikonalParameters
     observation_parameters: ObservationParameters
@@ -82,9 +70,10 @@ class PosteriorBuilderSettings:
 @dataclass
 class PosteriorBuilderOutput:
     pv_mesh: pv.UnstructuredGrid
-    fiber_transformator: transform.AngleFiberTransformator
-    angle_transformator: transform.AngleParameterTransformator
+    prior_mean_parameter: np.ndarray[tuple[int], np.dtype[np.float64]]
     ground_truth_parameter: np.ndarray[tuple[int], np.dtype[np.float64]]
+    prior_mean_solution: np.ndarray[tuple[int], np.dtype[np.float64]]
+    ground_truth_solution: np.ndarray[tuple[int], np.dtype[np.float64]]
     observation_inds: np.ndarray[tuple[int], np.dtype[np.float64]]
     noisy_data: np.ndarray[tuple[int], np.dtype[np.float64]]
 
@@ -94,7 +83,6 @@ class PosteriorBuilder:
     # ----------------------------------------------------------------------------------------------
     def __init__(self, settings: PosteriorBuilderSettings) -> None:
         self._paths = settings.paths
-        self._strategies = settings.strategies
         self._prior_parameters = settings.prior_parameters
         self._eikonal_parameters = settings.eikonal_parameters
         self._observation_parameters = settings.observation_parameters
@@ -105,49 +93,45 @@ class PosteriorBuilder:
         self._mesh_vertices = None
         self._mesh_simplices = None
         self._basis_vectors = None
-        self._fiber_field_ensemble = None
-        self._ground_truth_fiber_field = None
+        self._prior_mean_parameter = None
         self._ground_truth_parameter = None
-        self._mean_angle_field = None
         self._observation_inds = None
         self._noisy_data = None
-        self._fiber_transformator = None
-        self._angle_transformator = None
         self._prior_component = None
-        self._pts_map = None
+        self._pts_map_component = None
         self._likelihood_component = None
 
     # ----------------------------------------------------------------------------------------------
     def build(self, return_additional_data: bool = False) -> None:
         self._pv_mesh, self._dlx_mesh, self._basis_vectors = self._load_mesh_data()
         self._mesh_vertices, self._mesh_simplices = self._extract_mesh_data()
-        self._ground_truth_fiber_field = self._get_ground_truth_fiber_field()
-        self._fiber_transformator = transform.AngleFiberTransformator(
-            self._basis_vectors[..., 0], self._basis_vectors[..., 1]
-        )
-        self._ground_truth_angle = self._fiber_transformator.compute_angle_from_fiber(
-            self._ground_truth_fiber_field
-        )
-        self._mean_angle_field = self._compute_mean_angle_field()
-        self._angle_transformator = transform.AngleParameterTransformator(self._mean_angle_field)
-
+        self._prior_mean_parameter = np.load(self._paths.prior_mean_path)
+        self._ground_truth_parameter = np.load(self._paths.ground_truth_path)
         self._prior_component = self._create_prior()
-        tensor_field_object = self._create_tensor_field()
+        tensor_field_component = self._create_tensor_field()
         ekx_solver, ekx_derivator = self._create_eikonax_solver_and_derivator()
-        self._pts_map = ptsmap.EikonalPTSMap(ekx_solver, ekx_derivator, tensor_field_object)
+        self._pts_map_component = ptsmap.EikonalPTSMap(
+            self._pv_mesh, ekx_solver, ekx_derivator, tensor_field_component
+        )
         self._observation_inds, self._noisy_data = self._get_observational_data()
         self._likelihood_component = self._create_likelihood()
-
         logger = self._create_logger()
         posterior_component = ls_bip_posterior.LogPosterior(
-            self._likelihood_component, self._pts_map, self._prior_component, logger
+            self._likelihood_component, self._pts_map_component, self._prior_component, logger
         )
         if return_additional_data:
+            prior_mean_solution = self._pts_map_component.evaluate_forward(
+                self._prior_mean_parameter
+            )
+            ground_truth_solution = self._pts_map_component.evaluate_forward(
+                self._ground_truth_parameter
+            )
             additional_output = PosteriorBuilderOutput(
                 pv_mesh=self._pv_mesh,
-                fiber_transformator=self._fiber_transformator,
-                angle_transformator=self._angle_transformator,
+                prior_mean_parameter=self._prior_mean_parameter,
                 ground_truth_parameter=self._ground_truth_parameter,
+                prior_mean_solution=prior_mean_solution,
+                ground_truth_solution=ground_truth_solution,
                 observation_inds=self._observation_inds,
                 noisy_data=self._noisy_data,
             )
@@ -161,11 +145,9 @@ class PosteriorBuilder:
     ) -> tuple[
         pv.UnstructuredGrid, dlx.mesh.Mesh, np.ndarray[tuple[int, int], np.dtype[np.float64]]
     ]:
-        pv_mesh = pv.read(self._paths.vtu_mesh_path)
-        with XDMFFile(MPI.COMM_WORLD, self._paths.xdmf_mesh_path, "r") as xdmf:
-            dlx_mesh = xdmf.read_mesh(name="Grid")
+        pv_mesh = pv.read(self._paths.mesh_path)
+        dlx_mesh = mesh_utils.create_dolfinx_mesh_from_pyvista_mesh(pv_mesh)
         basis_vectors = np.load(self._paths.basis_vecs_path)
-
         return pv_mesh, dlx_mesh, basis_vectors
 
     # ----------------------------------------------------------------------------------------------
@@ -181,35 +163,15 @@ class PosteriorBuilder:
         return vertices, simplices
 
     # ----------------------------------------------------------------------------------------------
-    def _get_ground_truth_fiber_field(self) -> np.ndarray[tuple[int, int], np.dtype[np.float64]]:
-        match self._strategies.ground_truth_strategy:
-            case "from_mesh":
-                fiber_vectors = self._pv_mesh.cell_data["fibers"]
-            case "from_file":
-                fiber_vectors = np.load(self._paths.ground_truth_path)
-        return fiber_vectors
-
-    # ----------------------------------------------------------------------------------------------
-    def _compute_mean_angle_field(self) -> np.ndarray:
-        match self._strategies.mean_strategy:
-            case "from_ground_truth":
-                mean_angle = data_processing.compute_axial_mean_and_variance(
-                    self._ground_truth_angle[..., None]
-                )[0] * np.ones(self._mesh_simplices.shape[0])
-            case "from_ensemble":
-                raise NotImplementedError
-        return mean_angle
-
-    # ----------------------------------------------------------------------------------------------
-    def _create_prior(self) -> prior.FiberFieldPrior:
+    def _create_prior(self) -> prior.AngleFieldPrior:
         prior_settings = ls_prior_builder.BilaplacianPriorSettings(
             mesh=self._dlx_mesh,
-            mean_vector=np.zeros(self._mesh_simplices.shape[0]),
+            mean_vector=self._prior_mean_parameter,
             kappa=self._prior_parameters.kappa,
             tau=self._prior_parameters.tau,
             seed=self._prior_parameters.seed,
         )
-        prior_component = prior.FiberFieldPrior(prior_settings)
+        prior_component = prior.AngleFieldPrior(prior_settings)
         return prior_component
 
     # ----------------------------------------------------------------------------------------------
@@ -222,7 +184,6 @@ class PosteriorBuilder:
         )
         fiber_tensor_settings = fibertensor.FiberTensorSettings(
             dimension=3,
-            mean_angle_vector=self._mean_angle_field,
             basis_vectors_one=self._basis_vectors[..., 0],
             basis_vectors_two=self._basis_vectors[..., 1],
             longitudinal_velocities=longitudinal_velocity_vector,
@@ -272,31 +233,21 @@ class PosteriorBuilder:
     ) -> tuple[
         np.ndarray[tuple[int], np.dtype[np.float64]], np.ndarray[tuple[int], np.dtype[np.float64]]
     ]:
-        match self._strategies.noisy_data_strategy:
-            case "from_file":
-                observations = np.load(self._paths.noisy_data_path)
-                observation_inds = observations["inds"]
-                noisy_data = observations["data"]
-            case "from_ground_truth":
-                rng = np.random.default_rng(seed=self._observation_parameters.seed)
-                observation_inds = rng.integers(
-                    low=0,
-                    high=self._mesh_vertices.shape[0],
-                    size=self._observation_parameters.num_observations,
-                )
-                ground_truth_angle = self._fiber_transformator.compute_angle_from_fiber(
-                    self._ground_truth_fiber_field
-                )
-                self._ground_truth_parameter = (
-                    self._angle_transformator.compute_parameter_from_angle(ground_truth_angle)
-                )
-                ground_truth_solution = self._pts_map.evaluate_forward(self._ground_truth_parameter)
-                noise = rng.normal(
-                    loc=0.0,
-                    scale=np.sqrt(self._observation_parameters.noise_variance),
-                    size=self._observation_parameters.num_observations,
-                )
-                noisy_data = ground_truth_solution[observation_inds] + noise
+        rng = np.random.default_rng(seed=self._observation_parameters.seed)
+        observation_inds = rng.choice(
+            np.arange(self._mesh_vertices.shape[0]),
+            size=self._observation_parameters.num_observations,
+            replace=False,
+        )
+        ground_truth_solution = self._pts_map_component.evaluate_forward(
+            self._ground_truth_parameter
+        )
+        noise = rng.normal(
+            loc=0.0,
+            scale=np.sqrt(self._observation_parameters.noise_variance),
+            size=self._observation_parameters.num_observations,
+        )
+        noisy_data = ground_truth_solution[observation_inds] + noise
         return observation_inds, noisy_data
 
     # ----------------------------------------------------------------------------------------------
