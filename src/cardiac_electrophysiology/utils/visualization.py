@@ -34,8 +34,19 @@ def visualize_scalar_field(
     copied_mesh = mesh.copy()
     copied_mesh.point_data["scalar_field_to_plot"] = scalar_field
     plotter = pv.Plotter()
-    cmap = "hsv" if circular else "lipari"
-    plotter.add_mesh(copied_mesh, scalars="scalar_field_to_plot", cmap=cmap, clim=clim)
+    if circular:
+        cmap = "hsv"
+        interpolate_before_map = False
+    else:
+        cmap = "lipari"
+        interpolate_before_map = True
+    plotter.add_mesh(
+        copied_mesh,
+        scalars="scalar_field_to_plot",
+        cmap=cmap,
+        clim=clim,
+        interpolate_before_map=interpolate_before_map,
+    )
     plotter.show()
 
 
@@ -53,4 +64,3 @@ def visualize_data_points(
     )
     plotter.add_mesh(mesh, color=mesh_color)
     plotter.show()
-

@@ -9,7 +9,7 @@ from cardiac_electrophysiology.ls_bip import posterior as lsbip_posterior
 
 # ==================================================================================================
 def compute_axial_mean_and_variance(
-    angle_samples: np.ndarray[tuple[int, int], np.dtype[np.float64]], axis: int = 0
+    angle_samples: np.ndarray[tuple[int, int], np.dtype[np.float64]], axis: int = 1
 ) -> tuple[
     np.ndarray[tuple[int], np.dtype[np.float64]], np.ndarray[tuple[int], np.dtype[np.float64]]
 ]:
@@ -26,6 +26,19 @@ def compute_axial_mean_and_variance(
     axial_mean[shift_by_two_pi_mask] -= 2 * np.pi
 
     return axial_mean, axial_variance
+
+
+# ==================================================================================================
+def shift_angles_to_minimize_axial_variance(
+    angle_samples: np.ndarray[tuple[int, int], np.dtype[np.float64]], axis: int = 1
+) -> np.ndarray[tuple[int, int], np.dtype[np.float64]]:
+    angle_samples = np.atleast_2d(angle_samples)
+    axial_mean, _ = compute_axial_mean_and_variance(angle_samples, axis=axis)
+    centered_angles = angle_samples - axial_mean
+    centered_angles = np.mod(centered_angles, np.pi)
+    centered_angles[centered_angles > 1 / 2 * np.pi] -= np.pi
+    reconstructed_angles = centered_angles + axial_mean
+    return reconstructed_angles
 
 
 # ==================================================================================================
@@ -81,7 +94,10 @@ def compute_map_result_analysis(
     )
 
 
-def compute_axial_data_diff(angle_field_one, angle_field_two):
+def compute_axial_data_diff(
+    angle_field_one: np.ndarray[tuple[int], np.dtype[np.float64]],
+    angle_field_two: np.ndarray[tuple[int], np.dtype[np.float64]],
+) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
     raw_diff = angle_field_one - angle_field_two
     diff_metric = 0.5 * np.atan2(np.sin(2 * raw_diff), np.cos(2 * raw_diff))
     return diff_metric
