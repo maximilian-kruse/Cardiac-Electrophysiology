@@ -36,7 +36,7 @@ def create_dolfinx_mesh_from_pyvista_mesh(pv_mesh: pv.UnstructuredGrid) -> dolfi
     cells = pv_mesh.cells.reshape(-1, 4)[:, 1:]
     if not np.all(pv_mesh.celltypes == pv.CellType.TRIANGLE):
         raise ValueError("Only triangular meshes are supported.")
-    ufl_type = ufl.Mesh(basix.ufl.element("Lagrange", "triangle", 1, shape=(2,)))
+    ufl_type = ufl.Mesh(basix.ufl.element("Lagrange", "triangle", 1, shape=(3,)))
     return dolfinx.mesh.create_mesh(MPI.COMM_WORLD, cells, points, ufl_type)
 
 
