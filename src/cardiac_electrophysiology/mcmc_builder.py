@@ -1,0 +1,120 @@
+from dataclasses import dataclass
+from typing import override
+
+import numpy as np
+from ls_mcmc import algorithms, logging, model, output, sampling, storage
+
+from .ls_bip import posterior
+
+
+# ==================================================================================================
+class CardiacEPMCMCModel(model.DifferentiableMCMCModel):
+    # ----------------------------------------------------------------------------------------------
+    def __init__(
+        self,
+        log_posterior: posterior.LogPosterior,
+        reference_point: np.ndarray[tuple[int], np.dtype[np.float64]],
+    ) -> None:
+        self._reference_point = reference_point
+        self._posterior = log_posterior
+
+    # ----------------------------------------------------------------------------------------------
+    @override
+    def evaluate_potential(self, state: np.ndarray[tuple[int], np.dtype[np.float64]]) -> float:
+        likelihood_cost, _ = self._posterior.evaluate_cost(state, split=True)
+        return likelihood_cost
+
+    # ----------------------------------------------------------------------------------------------
+    @override
+    def evaluate_gradient_of_potential(
+        self, state: np.ndarray[tuple[int], np.dtype[np.float64]]
+    ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
+        likelihood_gradient, _ = self._posterior.evaluate_gradient(state, split=True)
+        return likelihood_gradient
+
+    # ----------------------------------------------------------------------------------------------
+    @override
+    def compute_preconditioner_sqrt_action(
+        self, _state: np.ndarray[tuple[int], np.dtype[np.float64]]
+    ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
+        # TODO: Enable ls-prior to take random vector from outside
+        # This only works because we need to apply preconditioner sqrt action to random vectors
+        # only, which effectively ammounbts to sampling from the prior distribution
+        result = self._posterior.prior.generate_sample()
+        return result
+
+    # ----------------------------------------------------------------------------------------------
+    @override
+    def compute_preconditioner_action(
+        self, state: np.ndarray[tuple[int], np.dtype[np.float64]]
+    ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
+        result = self._posterior.prior.evaluate_hessian_vector_product(state)
+        return result
+
+    # ----------------------------------------------------------------------------------------------
+    @override
+    @property
+    def reference_point(self) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
+        return self._reference_point
+
+
+# ==================================================================================================
+@dataclass
+class MCMCModelSettings:
+    log_posterior: posterior.LogPosterior
+    reference_point: np.ndarray[tuple[int], np.dtype[np.float64]]
+    step_width: float
+    index_to_track: int
+
+
+@dataclass
+class MCMCBuilderSettings:
+    mcmc_model_settings: MCMCModelSettings
+    logging_settings: logging.LoggerSettings
+
+
+# ==================================================================================================
+class MCMCBuilder:
+    # ----------------------------------------------------------------------------------------------
+    def __init__(self, settings: MCMCBuilderSettings) -> None:
+        self._mcmc_model_settings = settings.mcmc_model_settings
+        self._logging_settings = settings.logging_settings
+
+    # ----------------------------------------------------------------------------------------------
+    def build(self) -> sampling.Sampler:
+        mcmc_model = CardiacEPMCMCModel(
+            log_posterior=self._mcmc_model_settings.log_posterior,
+            reference_point=self._mcmc_model_settings.reference_point,
+        )
+        algorithm = algorithms.pCNAlgorithm(mcmc_model, self._mcmc_model_settings.step_width)
+        sample_storage = storage.NumpyStorage()
+        logger = logging.MCMCLogger(self._logging_settings)
+        outputs = self._create_outputs()
+        sampler = sampling.Sampler(algorithm, sample_storage, outputs, logger)
+        return sampler
+
+    # ----------------------------------------------------------------------------------------------
+    def _create_outputs(self) -> list[output.MCMCOutput]:
+        acceptance_rate_output = output.MCMCOutput(
+            output.AcceptanceQoI(),
+            output.RunningMeanStatistic(),
+            f"{'Accept Rate':<15}",
+            "<+15.3e",
+            log=True,
+        )
+        component_output = output.MCMCOutput(
+            output.ComponentQoI(self._mcmc_model_settings.index_to_track),
+            output.IdentityStatistic(),
+            f"{f'Component {self._mcmc_model_settings.index_to_track}':<15}",
+            "<+15.3e",
+            log=True,
+        )
+        running_mean_component_output = output.MCMCOutput(
+            output.ComponentQoI(self._mcmc_model_settings.index_to_track),
+            output.RunningMeanStatistic(),
+            f"{f'Run_mean_C_{self._mcmc_model_settings.index_to_track}':<15}",
+            "<+15.3e",
+            log=True,
+        )
+        outputs = (acceptance_rate_output, component_output, running_mean_component_output)
+        return outputs

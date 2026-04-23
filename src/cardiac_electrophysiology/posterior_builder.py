@@ -10,7 +10,7 @@ from eikonax import solver as eikonax_solver
 from eikonax import tensorfield as eikonax_tensorfield
 from ls_prior import builder as ls_prior_builder
 
-from cardiac_electrophysiology.components import fibertensor, prior, ptsmap, transform
+from cardiac_electrophysiology.components import fibertensor, prior, ptsmap
 from cardiac_electrophysiology.ls_bip import components as ls_bip_components
 from cardiac_electrophysiology.ls_bip import logging as ls_bip_logging
 from cardiac_electrophysiology.ls_bip import posterior as ls_bip_posterior

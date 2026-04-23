@@ -92,8 +92,10 @@ class LogPosterior:
 
     # ----------------------------------------------------------------------------------------------
     def evaluate_cost(
-        self, parameter_vector: np.ndarray[tuple[int], np.dtype[np.float64]]
-    ) -> float:
+        self,
+        parameter_vector: np.ndarray[tuple[int], np.dtype[np.float64]],
+        split: bool = False,
+    ) -> float | tuple[float, float]:
         if self._logger:
             self._logger.log_header("Cost Evaluation")
             self._logger.info(
@@ -109,13 +111,21 @@ class LogPosterior:
             self._logger.info(f"total_cost: {total_cost}")
         self._cached_state.set_parameter_vector(parameter_vector)
         self._cached_state.set_solution_vector(solution_vector, parameter_vector)
-        return total_cost
+        if split:
+            return likelihood_cost, prior_cost
+        else:
+            return total_cost
 
     # ----------------------------------------------------------------------------------------------
     def evaluate_gradient(
-        self,
-        parameter_vector: np.ndarray[tuple[int], np.dtype[np.float64]],
-    ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
+        self, parameter_vector: np.ndarray[tuple[int], np.dtype[np.float64]], split: bool = False
+    ) -> (
+        np.ndarray[tuple[int], np.dtype[np.float64]]
+        | tuple[
+            np.ndarray[tuple[int], np.dtype[np.float64]],
+            np.ndarray[tuple[int], np.dtype[np.float64]],
+        ]
+    ):
         if self._logger:
             self._logger.log_header("Gradient Evaluation")
             self._logger.info(
@@ -146,7 +156,10 @@ class LogPosterior:
             self._logger.info(f"prior_gradient norm: {np.linalg.norm(prior_gradient)}")
         total_gradient = pts_gradient + prior_gradient
         self._cached_state.set_gradient_vector(pts_gradient, parameter_vector)
-        return total_gradient
+        if split:
+            return pts_gradient, prior_gradient
+        else:
+            return total_gradient
 
     # ----------------------------------------------------------------------------------------------
     def evaluate_hessian_vector_product(

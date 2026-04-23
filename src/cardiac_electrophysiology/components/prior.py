@@ -62,11 +62,18 @@ class AngleFieldPrior(ls_bip_components.Prior):
     # ----------------------------------------------------------------------------------------------
     @override
     def evaluate_hessian_vector_product(
-        self,
-        _parameter_vector: np.ndarray[tuple[int], np.dtype[np.float64]],
-        direction_vector: np.ndarray[tuple[int], np.dtype[np.float64]],
+        self, direction_vector: np.ndarray[tuple[int], np.dtype[np.float64]],
     ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
-        raise NotImplementedError
+        dlx_direction_vector = self._dlx_mesh_mapping.map_vertex_data_to_dolfinx_ordering(
+            direction_vector
+        )
+        dlx_hessian_vector_product = self._spde_prior.evaluate_hessian_vector_product(
+            dlx_direction_vector
+        )
+        hessian_vector_product = self._dlx_mesh_mapping.map_vertex_data_from_dolfinx_ordering(
+            dlx_hessian_vector_product
+        )
+        return hessian_vector_product
 
     # ----------------------------------------------------------------------------------------------
     @override

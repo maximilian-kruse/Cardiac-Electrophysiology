@@ -19,8 +19,8 @@ class BaseConfig(ABC):
 @dataclass
 class OptimizationResult:
     result: np.ndarray[tuple[int], np.dtype[np.float64]]
-    loss_history: list[float]
-    gradient_norm_history: list[float]
+    loss_history: np.ndarray[tuple[int], np.dtype[np.float64]]
+    gradient_norm_history: np.ndarray[tuple[int], np.dtype[np.float64]]
     num_iterations: int
     success: bool
     status_message: str
@@ -75,6 +75,8 @@ class BaseOptimizer(ABC):
             hvp_function,
             self._callback,
         )
+        self._loss_history = np.array(self.loss_history)
+        self._gradient_norm_history = np.array(self.gradient_norm_history)
         return self._create_optimization_result(result)
 
     # ----------------------------------------------------------------------------------------------
@@ -179,8 +181,8 @@ class LBFGSOptimizer(BaseOptimizer):
     def _create_optimization_result(self, result: spo.OptimizeResult) -> OptimizationResult:
         return OptimizationResult(
             result=result.x,
-            loss_history=self.loss_history,
-            gradient_norm_history=self.gradient_norm_history,
+            loss_history=self._loss_history,
+            gradient_norm_history=self._gradient_norm_history,
             num_iterations=result.nit,
             success=result.success,
             status_message=result.message,
