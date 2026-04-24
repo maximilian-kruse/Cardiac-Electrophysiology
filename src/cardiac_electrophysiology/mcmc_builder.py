@@ -35,12 +35,9 @@ class CardiacEPMCMCModel(model.DifferentiableMCMCModel):
     # ----------------------------------------------------------------------------------------------
     @override
     def compute_preconditioner_sqrt_action(
-        self, _state: np.ndarray[tuple[int], np.dtype[np.float64]]
+        self, random_vector: np.ndarray[tuple[int], np.dtype[np.float64]]
     ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
-        # TODO: Enable ls-prior to take random vector from outside
-        # This only works because we need to apply preconditioner sqrt action to random vectors
-        # only, which effectively ammounbts to sampling from the prior distribution
-        result = self._posterior.prior.generate_sample()
+        result = self._posterior.prior.apply_covariance_factorization(random_vector)
         return result
 
     # ----------------------------------------------------------------------------------------------
@@ -48,7 +45,7 @@ class CardiacEPMCMCModel(model.DifferentiableMCMCModel):
     def compute_preconditioner_action(
         self, state: np.ndarray[tuple[int], np.dtype[np.float64]]
     ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
-        result = self._posterior.prior.evaluate_hessian_vector_product(state)
+        result = self._posterior.prior.apply_covariance_operator(state)
         return result
 
     # ----------------------------------------------------------------------------------------------
@@ -56,6 +53,12 @@ class CardiacEPMCMCModel(model.DifferentiableMCMCModel):
     @property
     def reference_point(self) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
         return self._reference_point
+
+    # ----------------------------------------------------------------------------------------------
+    @override
+    @property
+    def random_vector_size(self) -> int:
+        return self._posterior.prior.random_vector_size
 
 
 # ==================================================================================================
@@ -86,7 +89,7 @@ class MCMCBuilder:
             log_posterior=self._mcmc_model_settings.log_posterior,
             reference_point=self._mcmc_model_settings.reference_point,
         )
-        algorithm = algorithms.pCNAlgorithm(mcmc_model, self._mcmc_model_settings.step_width)
+        algorithm = algorithms.MALAAlgorithm(mcmc_model, self._mcmc_model_settings.step_width)
         sample_storage = storage.NumpyStorage()
         logger = logging.MCMCLogger(self._logging_settings)
         outputs = self._create_outputs()

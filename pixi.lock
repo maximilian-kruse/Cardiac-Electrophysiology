@@ -278,7 +278,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libzip-1.11.2-h6991a6a_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libzlib-1.3.1-hb9d3cd8_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/loguru-0.7.3-pyh707e725_0.conda
-      - conda: https://repo.prefix.dev/kruse-forge/noarch/ls-prior-0.4.16-pyh4616a5c_0.conda
+      - conda: https://repo.prefix.dev/kruse-forge/noarch/ls-prior-0.5.3-pyh4616a5c_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/lz4-c-1.10.0-h5888daf_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/markdown-it-py-4.0.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/markupsafe-3.0.3-py313h3dea7bd_0.conda
@@ -955,7 +955,7 @@ packages:
 - pypi: ./
   name: cardiac-electrophysiology
   version: 0.1.0
-  sha256: 44091768831fccafa6b71e4a2d647038cdce6197b7bb1137069d45c1703eb6b7
+  sha256: a1186ab134344919c06485b16048cb79b5bf3ab94bda308be8fcb39424d2ab43
   requires_python: '>=3.13'
 - conda: https://conda.anaconda.org/conda-forge/noarch/certifi-2026.1.4-pyhd8ed1ab_0.conda
   sha256: 110338066d194a715947808611b763857c15458f8b3b97197387356844af9450
@@ -4280,8 +4280,9 @@ packages:
   - pkg:pypi/loguru?source=hash-mapping
   size: 59696
   timestamp: 1746634858826
-- conda: https://repo.prefix.dev/kruse-forge/noarch/ls-prior-0.4.16-pyh4616a5c_0.conda
-  sha256: 7d0dd071b6b99280445da8db3a65e2f55ef34b8f6b968f2442e7583fd6267048
+- conda: https://repo.prefix.dev/kruse-forge/noarch/ls-prior-0.5.3-pyh4616a5c_0.conda
+  sha256: 1724a1c28df6937e487a23984f8030cb8087501785ca5870af8489ba98ebd1ca
+  md5: 4db04f7128c7d9d2bdd3085019bfd7c9
   depends:
   - numpy >=2.2
   - fenics-dolfinx >=0.9.0,<0.10
@@ -4291,8 +4292,8 @@ packages:
   - python >=3.13
   - python *
   license: MIT
-  size: 16061
-  timestamp: 1761254499420
+  size: 16150
+  timestamp: 1777046116005
 - conda: https://conda.anaconda.org/conda-forge/linux-64/lz4-c-1.10.0-h5888daf_1.conda
   sha256: 47326f811392a5fd3055f0f773036c392d26fdb32e4d8e7a8197eed951489346
   md5: 9de5350a85c4a20c685259b889aa6393

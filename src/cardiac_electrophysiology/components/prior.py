@@ -76,6 +76,31 @@ class AngleFieldPrior(ls_bip_components.Prior):
         return hessian_vector_product
 
     # ----------------------------------------------------------------------------------------------
+    def apply_covariance_operator(
+        self, parameter_vector: np.ndarray[tuple[int], np.dtype[np.float64]]
+    ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
+        dlx_parameter_vector = self._dlx_mesh_mapping.map_vertex_data_to_dolfinx_ordering(
+            parameter_vector
+        )
+        dlx_covariance_action = self._spde_prior.apply_covariance_operator(dlx_parameter_vector)
+        covariance_action = self._dlx_mesh_mapping.map_vertex_data_from_dolfinx_ordering(
+            dlx_covariance_action
+        )
+        return covariance_action
+
+    # ----------------------------------------------------------------------------------------------
+    def apply_covariance_factorization(
+            self, random_vector: np.ndarray[tuple[int], np.dtype[np.float64]]
+    ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
+        dlx_transformed_random_vector = self._spde_prior.apply_covariance_factorization(
+            random_vector
+        )
+        transformed_random_vector = self._dlx_mesh_mapping.map_vertex_data_from_dolfinx_ordering(
+            dlx_transformed_random_vector
+        )
+        return transformed_random_vector
+
+    # ----------------------------------------------------------------------------------------------
     @override
     def generate_sample(
         self, _parameter_vector: None = None
@@ -83,3 +108,8 @@ class AngleFieldPrior(ls_bip_components.Prior):
         dlx_sample = self._spde_prior.generate_sample()
         sample = self._dlx_mesh_mapping.map_vertex_data_from_dolfinx_ordering(dlx_sample)
         return sample
+
+    # ----------------------------------------------------------------------------------------------
+    @property
+    def random_vector_size(self) -> int:
+        return self._spde_prior.random_vector_size
