@@ -89,7 +89,7 @@ class MCMCBuilder:
             log_posterior=self._mcmc_model_settings.log_posterior,
             reference_point=self._mcmc_model_settings.reference_point,
         )
-        algorithm = algorithms.MALAAlgorithm(mcmc_model, self._mcmc_model_settings.step_width)
+        algorithm = algorithms.pCNAlgorithm(mcmc_model, self._mcmc_model_settings.step_width)
         sample_storage = storage.NumpyStorage()
         logger = logging.MCMCLogger(self._logging_settings)
         outputs = self._create_outputs()

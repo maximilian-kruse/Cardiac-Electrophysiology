@@ -35,9 +35,8 @@ def shift_angles_to_minimize_axial_variance(
     angle_samples = np.atleast_2d(angle_samples)
     axial_mean, _ = compute_axial_mean_and_variance(angle_samples, axis=axis)
     centered_angles = angle_samples - axial_mean
-    centered_angles = np.mod(centered_angles, np.pi)
-    centered_angles[centered_angles > 1 / 2 * np.pi] -= np.pi
-    reconstructed_angles = centered_angles + axial_mean
+    wrapped_angles = (centered_angles + np.pi / 2) % np.pi - np.pi / 2
+    reconstructed_angles = wrapped_angles + axial_mean
     return reconstructed_angles
 
 
@@ -48,6 +47,7 @@ class MapAnalysisData:
     diff_angle_truth_map: np.ndarray[tuple[int], np.dtype[np.float64]]
     diff_lat_truth_prior: np.ndarray[tuple[int], np.dtype[np.float64]]
     diff_lat_truth_map: np.ndarray[tuple[int], np.dtype[np.float64]]
+    diff_lat_data_map: np.ndarray[tuple[int], np.dtype[np.float64]]
     ground_truth_parameter: np.ndarray[tuple[int], np.dtype[np.float64]]
     prior_mean_parameter: np.ndarray[tuple[int], np.dtype[np.float64]]
     map_parameter: np.ndarray[tuple[int], np.dtype[np.float64]]
@@ -78,6 +78,9 @@ def compute_map_result_analysis(
     diff_angle_truth_map = compute_axial_data_diff(ground_truth_parameter, map_parameter)
     diff_lat_truth_prior = ground_truth_predictive - prior_mean_predictive
     diff_lat_truth_map = ground_truth_predictive - map_predictive
+    diff_lat_data_map = (
+        additional_output.noisy_data - map_predictive[additional_output.observation_inds]
+    )
 
     print(f"Prior mean angle L2-error: {np.linalg.norm(diff_angle_truth_prior)}")
     print(f"Prior mean angle max-error: {np.max(np.abs(diff_angle_truth_prior))}")
@@ -87,12 +90,15 @@ def compute_map_result_analysis(
     print(f"Prior mean predictive max-error: {np.max(np.abs(diff_lat_truth_prior))}")
     print(f"MAP predictive L2-error: {np.linalg.norm(diff_lat_truth_map)}")
     print(f"MAP predictive max-error: {np.max(np.abs(diff_lat_truth_map))}")
+    print(f"Data predictive L2-error: {np.linalg.norm(diff_lat_data_map)}")
+    print(f"Data predictive max-error: {np.max(np.abs(diff_lat_data_map))}")
 
     return MapAnalysisData(
         diff_angle_truth_prior=diff_angle_truth_prior,
         diff_angle_truth_map=diff_angle_truth_map,
         diff_lat_truth_prior=diff_lat_truth_prior,
         diff_lat_truth_map=diff_lat_truth_map,
+        diff_lat_data_map=diff_lat_data_map,
         prior_mean_parameter=prior_mean_parameter,
         ground_truth_parameter=ground_truth_parameter,
         map_parameter=map_parameter,
