@@ -1,6 +1,11 @@
 import numpy as np
 import pyvista as pv
 
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+sns.set_theme(style="ticks")
+
 
 # ==================================================================================================
 def visualize_vector_field(
@@ -64,3 +69,12 @@ def visualize_data_points(
     )
     plotter.add_mesh(mesh, color=mesh_color)
     plotter.show()
+
+
+# ==================================================================================================
+def plot_eigenvalues(eigenvalues: np.ndarray[tuple[int], np.dtype[np.float64]]) -> None:
+    indices = np.arange(len(eigenvalues)) + 1
+    _, ax = plt.subplots(figsize=(5, 5), layout="constrained")
+    ax.set_xlabel(r"$i$")
+    ax.set_ylabel(r"$\lambda_i$")
+    ax.semilogy(indices, eigenvalues)

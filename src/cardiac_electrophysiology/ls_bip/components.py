@@ -50,6 +50,17 @@ class ParameterToSolutionMap(ABC):
 
     # ----------------------------------------------------------------------------------------------
     @abstractmethod
+    def evaluate_jacobian_vector_product(
+        self,
+        solution_vector: np.ndarray[tuple[int], np.dtype[np.float64]],
+        parameter_vector: np.ndarray[tuple[int], np.dtype[np.float64]],
+        direction_vector: np.ndarray[tuple[int], np.dtype[np.float64]],
+    ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
+        raise NotImplementedError
+
+
+    # ----------------------------------------------------------------------------------------------
+    @abstractmethod
     def evaluate_hessian_vector_product(
         self,
         solution_vector: np.ndarray[tuple[int], np.dtype[np.float64]],
@@ -103,15 +114,15 @@ class GaussianLogLikelihood(Likelihood):
         observation_matrix: sp.coo_matrix,
         precision_matrix: sp.coo_matrix,
     ):
+        self.observation_matrix = observation_matrix
+        self.precision_matrix = precision_matrix
         self._data_vector = data_vector
-        self._observation_matrix = observation_matrix
-        self._precision_matrix = precision_matrix
 
     # ----------------------------------------------------------------------------------------------
     @override
     def evaluate_cost(self, solution_vector: np.ndarray[tuple[int], np.dtype[np.float64]]) -> float:
-        difference_vector = self._observation_matrix @ solution_vector - self._data_vector
-        cost = 0.5 * difference_vector.T @ self._precision_matrix @ difference_vector
+        difference_vector = self.observation_matrix @ solution_vector - self._data_vector
+        cost = 0.5 * difference_vector.T @ self.precision_matrix @ difference_vector
         return cost
 
     # ----------------------------------------------------------------------------------------------
@@ -119,8 +130,8 @@ class GaussianLogLikelihood(Likelihood):
     def evaluate_gradient(
         self, solution_vector: np.ndarray[tuple[int], np.dtype[np.float64]]
     ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
-        difference_vector = self._observation_matrix @ solution_vector - self._data_vector
-        gradient = self._observation_matrix.T @ self._precision_matrix @ difference_vector
+        difference_vector = self.observation_matrix @ solution_vector - self._data_vector
+        gradient = self.observation_matrix.T @ self.precision_matrix @ difference_vector
         return gradient
 
     # ----------------------------------------------------------------------------------------------
@@ -131,9 +142,9 @@ class GaussianLogLikelihood(Likelihood):
         direction_vector: np.ndarray[tuple[int], np.dtype[np.float64]],
     ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
         hvp = (
-            self._observation_matrix.T
-            @ self._precision_matrix
-            @ self._observation_matrix
+            self.observation_matrix.T
+            @ self.precision_matrix
+            @ self.observation_matrix
             @ direction_vector
         )
         return hvp

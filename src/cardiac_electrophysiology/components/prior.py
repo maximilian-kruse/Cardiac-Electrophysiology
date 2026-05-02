@@ -29,6 +29,7 @@ class DolfinxMeshMapping:
 class AngleFieldPrior(ls_bip_components.Prior):
     # ----------------------------------------------------------------------------------------------
     def __init__(self, settings: ls_prior_builder.BilaplacianPriorSettings) -> None:
+        self.settings = settings
         self._dlx_mesh_mapping = DolfinxMeshMapping(settings.mesh)
         settings.mean_vector = self._dlx_mesh_mapping.map_vertex_data_to_dolfinx_ordering(
             settings.mean_vector
@@ -90,7 +91,7 @@ class AngleFieldPrior(ls_bip_components.Prior):
 
     # ----------------------------------------------------------------------------------------------
     def apply_covariance_factorization(
-            self, random_vector: np.ndarray[tuple[int], np.dtype[np.float64]]
+        self, random_vector: np.ndarray[tuple[int], np.dtype[np.float64]]
     ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
         dlx_transformed_random_vector = self._spde_prior.apply_covariance_factorization(
             random_vector
