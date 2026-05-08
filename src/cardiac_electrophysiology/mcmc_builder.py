@@ -9,7 +9,7 @@ from .ls_bip import laplace, posterior
 
 
 # ==================================================================================================
-class CardiacEPMCMCModel(model.MCMCModel):
+class MALAModel(model.DifferentiableMCMCModel):
     # ----------------------------------------------------------------------------------------------
     def __init__(
         self,
@@ -24,22 +24,72 @@ class CardiacEPMCMCModel(model.MCMCModel):
     # ----------------------------------------------------------------------------------------------
     @override
     def evaluate_potential(self, state: np.ndarray[tuple[int], np.dtype[np.float64]]) -> float:
-        likelihood_potential, _ = self._posterior.evaluate_cost(state, split=True)
-        return likelihood_potential
+        likelihood_potential, prior_potential = self._posterior.evaluate_cost(state, split=True)
+        return likelihood_potential - prior_potential
+
+    # ----------------------------------------------------------------------------------------------
+    @override
+    def evaluate_gradient_of_potential(
+        self, state: np.ndarray[tuple[int], np.dtype[np.float64]]
+    ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
+        likelihood_gradient, prior_gradient = self._posterior.evaluate_gradient(state, split=True)
+        return likelihood_gradient - prior_gradient
 
     # ----------------------------------------------------------------------------------------------
     @override
     def compute_preconditioner_sqrt_action(
         self, random_vector: np.ndarray[tuple[int], np.dtype[np.float64]]
     ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
-        result = self._posterior.prior.apply_covariance_factorization(random_vector)
+        result = self._laplace_approximation.apply_sampling_factor(random_vector)
         return result
 
     # ----------------------------------------------------------------------------------------------
-    def compute_preconditioner_inv_action(
+    @override
+    def compute_preconditioner_action(
         self, vector: np.ndarray[tuple[int], np.dtype[np.float64]]
     ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
-        result = self._laplace_approximation.apply_precision(vector)
+        result = self._laplace_approximation.apply_covariance(vector)
+        return result
+
+    # ----------------------------------------------------------------------------------------------
+    @override
+    @property
+    def reference_point(self) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
+        return self._reference_point
+
+    # ----------------------------------------------------------------------------------------------
+    @override
+    @property
+    def random_vector_size(self) -> int:
+        return self._posterior.prior.random_vector_size
+
+
+# ==================================================================================================
+class PCNModel(model.MCMCModel):
+    # ----------------------------------------------------------------------------------------------
+    def __init__(
+        self,
+        log_posterior: posterior.LogPosterior,
+        laplace_approximation: laplace.LaplaceApproximation,
+        reference_point: np.ndarray[tuple[int], np.dtype[np.float64]],
+    ) -> None:
+        self._reference_point = reference_point
+        self._laplace_approximation = laplace_approximation
+        self._posterior = log_posterior
+
+    # ----------------------------------------------------------------------------------------------
+    @override
+    def evaluate_potential(self, state: np.ndarray[tuple[int], np.dtype[np.float64]]) -> float:
+        posterior_potential = self._posterior.evaluate_cost(state)
+        laplace_potential = self._laplace_approximation.evaluate_cost(state)
+        return posterior_potential - laplace_potential
+
+    # ----------------------------------------------------------------------------------------------
+    @override
+    def compute_preconditioner_sqrt_action(
+        self, random_vector: np.ndarray[tuple[int], np.dtype[np.float64]]
+    ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
+        result = self._laplace_approximation.apply_sampling_factor(random_vector)
         return result
 
     # ----------------------------------------------------------------------------------------------
@@ -86,7 +136,7 @@ class MCMCBuilder:
 
     # ----------------------------------------------------------------------------------------------
     def build(self) -> sampling.Sampler:
-        mcmc_model = CardiacEPMCMCModel(
+        mcmc_model = PCNModel(
             log_posterior=self._mcmc_model_settings.log_posterior,
             reference_point=self._mcmc_model_settings.reference_point,
             laplace_approximation=self._mcmc_model_settings.laplace_approximation,

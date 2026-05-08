@@ -1,75 +1,6 @@
-from functools import partial
-
 import numpy as np
-import scipy.sparse as sps
 
-from . import components, lowrank, posterior
-
-
-# ==================================================================================================
-def compute_preconditioned_hessian_lowrank_approximation(
-    posterior: posterior.LogPosterior,
-    map_estimate: np.ndarray[tuple[int], np.dtype[np.float64]],
-    map_solution: np.ndarray[tuple[int], np.dtype[np.float64]],
-    num_eigenvalues: int,
-    oversampling_factor: int,
-    seed: int | None = None,
-) -> tuple[
-    np.ndarray[tuple[int], np.dtype[np.float64]], np.ndarray[tuple[int, int], np.dtype[np.float64]]
-]:
-    observation_matrix = posterior.likelihood.observation_matrix
-    precision_matrix = posterior.likelihood.precision_matrix
-    jvp_callable = partial(
-        posterior.parameter_to_solution_map.evaluate_jacobian_vector_product,
-        parameter_vector=map_estimate,
-        solution_vector=map_solution,
-    )
-    vjp_callable = partial(
-        posterior.parameter_to_solution_map.evaluate_gradient,
-        parameter_vector=map_estimate,
-        solution_vector=map_solution,
-    )
-
-    def likelihood_hessian_callable(
-        direction_vector: np.ndarray[tuple[int], np.dtype[np.float64]],
-    ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
-        result = jvp_callable(direction_vector=direction_vector)
-        result = observation_matrix.T @ precision_matrix @ observation_matrix @ result
-        result = vjp_callable(adjoint_vector=result)
-        return result
-
-    eigenvalues, eigenvectors = lowrank.compute_randomized_generalized_ev_decomposition(
-        matrix_callable=likelihood_hessian_callable,
-        preconditioner_callable=posterior.prior.evaluate_hessian_vector_product,
-        inverse_preconditioner_callable=posterior.prior.apply_covariance_operator,
-        fullspace_size=map_estimate.size,
-        num_eigenvalues=num_eigenvalues,
-        over_sampling_factor=oversampling_factor,
-        seed=seed,
-    )
-    return eigenvalues, eigenvectors
-
-
-# --------------------------------------------------------------------------------------------------
-def compute_prior_covariance_lowrank_approximation(
-    prior: components.Prior,
-    map_estimate: np.ndarray[tuple[int], np.dtype[np.float64]],
-    num_eigenvalues: int,
-    oversampling_factor: int,
-    seed: int | None = None,
-) -> tuple[
-    np.ndarray[tuple[int], np.dtype[np.float64]], np.ndarray[tuple[int, int], np.dtype[np.float64]]
-]:
-    eigenvalues, eigenvectors = lowrank.compute_randomized_generalized_ev_decomposition(
-        matrix_callable=prior.apply_covariance_operator,
-        preconditioner_callable=lambda v: v,
-        inverse_preconditioner_callable=lambda v: v,
-        fullspace_size=map_estimate.size,
-        num_eigenvalues=num_eigenvalues,
-        over_sampling_factor=oversampling_factor,
-        seed=seed,
-    )
-    return eigenvalues, eigenvectors
+from . import components, lowrank
 
 
 # ==================================================================================================
@@ -139,7 +70,11 @@ class LaplaceApproximation:
         return result
 
     # ----------------------------------------------------------------------------------------------
-    def compute_pointwise_variance(self, return_prior: bool | None = False):
+    def compute_pointwise_variance(
+        self,
+    ) -> tuple[
+        np.ndarray[tuple[int], np.dtype[np.float64]], np.ndarray[tuple[int], np.dtype[np.float64]]
+    ]:
         prior_variance = sum(
             eigenvalue * self._prior_covariance_eigenvectors[:, i] ** 2
             for i, eigenvalue in enumerate(self._prior_covariance_eigenvalues)
@@ -148,8 +83,4 @@ class LaplaceApproximation:
             eigenvalue / (1 + eigenvalue) * self._hessian_eigenvectors[:, i] ** 2
             for i, eigenvalue in enumerate(self._hessian_eigenvalues)
         )
-        laplace_variance = prior_variance - hessian_variance
-        if return_prior:
-            return laplace_variance, prior_variance
-        else:
-            return laplace_variance
+        return prior_variance, hessian_variance
